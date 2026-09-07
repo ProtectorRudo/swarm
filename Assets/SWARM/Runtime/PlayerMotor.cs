@@ -30,6 +30,15 @@ namespace Swarm
             if (!enabled) _velocity = Vector2.zero;
         }
 
+        public void Teleport(Vector2 worldPosition)
+        {
+            _velocity = Vector2.zero;
+            transform.position = new Vector3(
+                Mathf.Clamp(worldPosition.x, -_arenaHalfExtents.x, _arenaHalfExtents.x),
+                Mathf.Clamp(worldPosition.y, -_arenaHalfExtents.y, _arenaHalfExtents.y),
+                transform.position.z);
+        }
+
         private void Update()
         {
             if (_input == null) return;
