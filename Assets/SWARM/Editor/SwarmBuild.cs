@@ -16,8 +16,18 @@ namespace Swarm.Editor
             SwarmProjectSetup.EnsureConfigured();
             Directory.CreateDirectory(Path.GetDirectoryName(OutputPath) ?? "Builds/Android");
 
-            if (!EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android))
-                throw new InvalidOperationException("Could not switch Unity active build target to Android.");
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                if (Application.isBatchMode)
+                {
+                    throw new InvalidOperationException(
+                        "Batch build must launch Unity with -buildTarget Android. " +
+                        "SwitchActiveBuildTarget is not supported in batch mode.");
+                }
+
+                if (!EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android))
+                    throw new InvalidOperationException("Could not switch Unity active build target to Android.");
+            }
 
             var options = new BuildPlayerOptions
             {
