@@ -12,6 +12,7 @@ namespace Swarm
         private OneHandInputSource _input;
         private Vector2 _velocity;
         private Vector2 _arenaHalfExtents;
+        private bool _movementEnabled = true;
 
         public Vector2 Velocity => _velocity;
         public float Speed01 => Mathf.Clamp01(_velocity.magnitude / Mathf.Max(0.01f, maxSpeed));
@@ -23,11 +24,19 @@ namespace Swarm
             _arenaHalfExtents = arenaHalfExtents;
         }
 
+        public void SetMovementEnabled(bool enabled)
+        {
+            _movementEnabled = enabled;
+            if (!enabled) _velocity = Vector2.zero;
+        }
+
         private void Update()
         {
             if (_input == null) return;
 
-            Vector2 targetVelocity = _input.MoveIntent * (maxSpeed * _input.Strength);
+            Vector2 targetVelocity = _movementEnabled
+                ? _input.MoveIntent * (maxSpeed * _input.Strength)
+                : Vector2.zero;
             float rate = targetVelocity.sqrMagnitude > 0.001f ? acceleration : deceleration;
             _velocity = Vector2.MoveTowards(_velocity, targetVelocity, rate * Time.deltaTime);
 
