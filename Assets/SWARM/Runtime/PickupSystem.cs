@@ -15,6 +15,7 @@ namespace Swarm
         private BlobPresenter _presenter;
         private CameraRig _cameraRig;
         private ToyHud _hud;
+        private FeedbackDirector _feedback;
         private Vector2 _halfExtents;
         private System.Random _random;
 
@@ -24,6 +25,7 @@ namespace Swarm
             BlobPresenter presenter,
             CameraRig cameraRig,
             ToyHud hud,
+            FeedbackDirector feedback,
             Vector2 halfExtents)
         {
             _player = player;
@@ -31,6 +33,7 @@ namespace Swarm
             _presenter = presenter;
             _cameraRig = cameraRig;
             _hud = hud;
+            _feedback = feedback;
             _halfExtents = halfExtents;
             _random = new System.Random(17031);
             BuildPool();
@@ -82,12 +85,14 @@ namespace Swarm
 
                 if (distanceSq > collectRadiusSq) continue;
 
-                int value = _bonus[i] ? 3 : 1;
+                bool bonus = _bonus[i];
+                int value = bonus ? 3 : 1;
                 Relocate(pickup, false);
                 _swarm.AddUnits(value);
-                _presenter.Pulse(_bonus[i] ? 1.45f : 1f);
-                _cameraRig.Punch(_bonus[i] ? 0.24f : 0.14f);
+                _presenter.Pulse(bonus ? 1.45f : 1f);
+                _cameraRig.Punch(bonus ? 0.24f : 0.14f);
                 _hud.NotifyPickup();
+                if (_feedback != null) _feedback.NotifyPickup(bonus);
             }
         }
 
