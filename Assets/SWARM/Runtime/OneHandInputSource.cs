@@ -18,9 +18,12 @@ namespace Swarm
         public float Strength { get; private set; }
         public bool HasActivePointer => _pointerActive;
         public bool HasEverMoved { get; private set; }
+        public bool PressedThisFrame { get; private set; }
 
         private void Update()
         {
+            PressedThisFrame = false;
+
             if (Input.touchCount > 0)
             {
                 ReadTouch(Input.GetTouch(0));
@@ -41,9 +44,7 @@ namespace Swarm
             }
 
             if (!_pointerActive)
-            {
                 ReadEditorKeys();
-            }
         }
 
         private void ReadTouch(Touch touch)
@@ -70,6 +71,7 @@ namespace Swarm
             _origin = screenPosition;
             MoveIntent = Vector2.zero;
             Strength = 0f;
+            PressedThisFrame = true;
         }
 
         private void MovePointer(Vector2 screenPosition)
