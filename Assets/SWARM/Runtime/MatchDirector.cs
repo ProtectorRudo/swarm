@@ -12,6 +12,7 @@ namespace Swarm
         private TerritorySystem _territory;
         private SwarmController _swarm;
         private ToyHud _hud;
+        private RivalBot _rival;
         private float _timeRemaining;
 
         public float TimeRemaining => Mathf.Max(0f, _timeRemaining);
@@ -33,6 +34,11 @@ namespace Swarm
             hud.BindMatch(this, territory);
         }
 
+        public void BindRival(RivalBot rival)
+        {
+            _rival = rival;
+        }
+
         private void Update()
         {
             if (!IsEnded)
@@ -52,6 +58,8 @@ namespace Swarm
             IsEnded = true;
             _timeRemaining = 0f;
             if (_motor != null) _motor.SetMovementEnabled(false);
+            if (_territory != null) _territory.enabled = false;
+            if (_rival != null) _rival.enabled = false;
             if (_hud != null)
                 _hud.ShowResult(_territory != null ? _territory.OwnedPercent : 0f, _swarm != null ? _swarm.Count : 0);
         }
