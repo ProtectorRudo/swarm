@@ -48,6 +48,7 @@ namespace Swarm
                 go.transform.localScale = Vector3.one * (bonus ? 0.43f : 0.29f + (i % 3) * 0.025f);
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = RuntimeArt.Circle;
+                RuntimeArt.Configure(renderer);
                 renderer.color = bonus
                     ? new Color(0.40f, 0.95f, 1f, 1f)
                     : new Color(1f, 0.92f, 0.48f, 0.94f);
