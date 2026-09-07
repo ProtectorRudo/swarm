@@ -58,6 +58,11 @@ namespace Swarm
             territoryVisualObject.transform.SetParent(root.transform, false);
             territoryVisualObject.AddComponent<TerritoryPresenter>().Initialize(territory, ArenaHalfExtents);
 
+            var rivalObject = new GameObject("Rival_RED");
+            rivalObject.transform.SetParent(root.transform, false);
+            var rival = rivalObject.AddComponent<RivalBot>();
+            rival.Initialize(territory, ArenaHalfExtents);
+
             var hudObject = new GameObject("HUD");
             hudObject.transform.SetParent(root.transform, false);
             var hud = hudObject.AddComponent<ToyHud>();
@@ -72,12 +77,24 @@ namespace Swarm
             matchObject.transform.SetParent(root.transform, false);
             var match = matchObject.AddComponent<MatchDirector>();
             match.Initialize(input, motor, territory, swarm, hud);
+            match.BindRival(rival);
 
             territory.CaptureCompleted += (percent, cells) =>
             {
                 avatarPresenter.Pulse(1.7f);
                 cameraRig.Punch(Mathf.Clamp(0.24f + cells * 0.006f, 0.28f, 0.85f));
                 hud.NotifyCapture(percent, cells);
+            };
+
+            territory.TrailCut += () =>
+            {
+                int loss = Mathf.Max(3, Mathf.CeilToInt(swarm.Count * 0.30f));
+                swarm.RemoveUnits(loss);
+                motor.Teleport(Vector2.zero);
+                swarm.SnapHistoryToAnchor();
+                avatarPresenter.Pulse(2.2f);
+                cameraRig.Punch(0.95f);
+                hud.NotifyTrailCut();
             };
         }
     }
