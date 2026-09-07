@@ -62,6 +62,10 @@ namespace Swarm.Editor
             if (pipeline == null)
                 throw new InvalidOperationException("SWARM URP asset is missing.");
 
+            var renderer = AssetDatabase.LoadAssetAtPath<ScriptableRendererData>(SwarmProjectSetup.RendererPath);
+            if (renderer == null)
+                throw new InvalidOperationException("SWARM URP 2D renderer asset is missing.");
+
             if (GraphicsSettings.defaultRenderPipeline != pipeline && QualitySettings.renderPipeline != pipeline)
                 throw new InvalidOperationException("SWARM URP asset exists but is not the active render pipeline.");
 
