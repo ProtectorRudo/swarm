@@ -32,7 +32,7 @@ namespace Swarm
         {
             _anchor = anchor;
             _motor = motor;
-            for (int i = 0; i < HistoryLength; i++) _history[i] = anchor.position;
+            SnapHistoryToAnchor();
         }
 
         public void AddUnits(int amount)
@@ -41,6 +41,23 @@ namespace Swarm
             Count += amount;
             EnsureVisualCount(VisibleCount);
             CountChanged?.Invoke(Count);
+        }
+
+        public void RemoveUnits(int amount)
+        {
+            if (amount <= 0 || Count <= 0) return;
+            Count = Mathf.Max(0, Count - amount);
+            CountChanged?.Invoke(Count);
+        }
+
+        public void SnapHistoryToAnchor()
+        {
+            if (_anchor == null) return;
+            _historyHead = 0;
+            _historyTimer = 0f;
+            for (int i = 0; i < HistoryLength; i++) _history[i] = _anchor.position;
+            for (int i = 0; i < _followers.Count; i++)
+                _followers[i].Transform.position = _anchor.position;
         }
 
         private void EnsureVisualCount(int desired)
