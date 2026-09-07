@@ -17,6 +17,7 @@ namespace Swarm
 
         private float _pickupPulse;
         private float _capturePulse;
+        private float _dangerPulse;
         private float _smoothedDelta;
         private string _captureMessage = string.Empty;
         private bool _showResult;
@@ -46,6 +47,11 @@ namespace Swarm
             _captureMessage = "+" + cells + " CELDAS  •  " + (percent * 100f).ToString("0.0") + "%";
         }
 
+        public void NotifyTrailCut()
+        {
+            _dangerPulse = 1f;
+        }
+
         public void ShowResult(float percent, int swarmCount)
         {
             _showResult = true;
@@ -57,6 +63,7 @@ namespace Swarm
         {
             _pickupPulse = Mathf.MoveTowards(_pickupPulse, 0f, Time.deltaTime * 3.6f);
             _capturePulse = Mathf.MoveTowards(_capturePulse, 0f, Time.deltaTime * 1.2f);
+            _dangerPulse = Mathf.MoveTowards(_dangerPulse, 0f, Time.deltaTime * 1.6f);
             _smoothedDelta += (Time.unscaledDeltaTime - _smoothedDelta) * 0.08f;
         }
 
@@ -82,7 +89,16 @@ namespace Swarm
                 GUI.Label(new Rect(width * 0.5f - 100f, 115f, 200f, 48f), seconds.ToString("00") + "s", _debugStyle);
             }
 
-            if (_capturePulse > 0.01f && !string.IsNullOrEmpty(_captureMessage))
+            if (_dangerPulse > 0.01f)
+            {
+                Color old = _resultStyle.normal.textColor;
+                _resultStyle.normal.textColor = new Color(1f, 0.25f, 0.30f, Mathf.Clamp01(_dangerPulse * 1.5f));
+                _resultStyle.fontSize = 62 + Mathf.RoundToInt(_dangerPulse * 14f);
+                GUI.Label(new Rect(30f, height * 0.22f, width - 60f, 120f), "¡TE CORTARON!", _resultStyle);
+                _resultStyle.normal.textColor = old;
+                _resultStyle.fontSize = 54;
+            }
+            else if (_capturePulse > 0.01f && !string.IsNullOrEmpty(_captureMessage))
             {
                 float alpha = Mathf.Clamp01(_capturePulse * 1.5f);
                 Color old = _instructionStyle.normal.textColor;
@@ -113,9 +129,11 @@ namespace Swarm
             if (_territory != null && _territory.CaptureCount == 0)
             {
                 if (_territory.IsTrailExposed)
-                    return "VOLVÉ A TU COLOR PARA CERRAR LA VUELTA";
+                    return "VOLVÉ A TU COLOR • EL ROJO PUEDE CORTAR TU RASTRO";
                 return "SALÍ DE TU COLOR • HACÉ UNA VUELTA • VOLVÉ";
             }
+            if (_territory != null && _territory.IsTrailExposed)
+                return "¡CERRÁ LA VUELTA ANTES DE QUE EL ROJO TE CORTE!";
             if (ownedPercent < 0.15f)
                 return "CERRÁ VUELTAS MÁS GRANDES • CONQUISTÁ EL MAPA";
             return "DOMINÁ TODO LO QUE PUEDAS ANTES DE QUE TERMINE EL TIEMPO";
