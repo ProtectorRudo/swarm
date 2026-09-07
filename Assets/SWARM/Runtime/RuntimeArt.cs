@@ -6,15 +6,33 @@ namespace Swarm
     {
         private static Sprite _circle;
         private static Sprite _square;
+        private static Material _spriteMaterial;
+
+        public static Material SpriteMaterial
+        {
+            get
+            {
+                if (_spriteMaterial == null)
+                {
+                    Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+                    if (shader == null) shader = Shader.Find("Sprites/Default");
+                    _spriteMaterial = new Material(shader) { name = "SWARM_RuntimeSpriteUnlit" };
+                }
+                return _spriteMaterial;
+            }
+        }
+
+        public static void Configure(SpriteRenderer renderer)
+        {
+            if (renderer != null) renderer.sharedMaterial = SpriteMaterial;
+        }
 
         public static Sprite Circle
         {
             get
             {
                 if (_circle == null)
-                {
                     _circle = CreateCircleSprite(64);
-                }
                 return _circle;
             }
         }
