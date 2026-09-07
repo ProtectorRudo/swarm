@@ -28,6 +28,7 @@ namespace Swarm
         {
             var body = gameObject.AddComponent<SpriteRenderer>();
             body.sprite = RuntimeArt.Circle;
+            RuntimeArt.Configure(body);
             body.color = new Color(1f, 0.26f, 0.34f, 1f);
             body.sortingOrder = 19;
             transform.localScale = Vector3.one * 1.05f;
@@ -37,6 +38,7 @@ namespace Swarm
             ring.localScale = Vector3.one * 1.45f;
             var ringRenderer = ring.gameObject.AddComponent<SpriteRenderer>();
             ringRenderer.sprite = RuntimeArt.Circle;
+            RuntimeArt.Configure(ringRenderer);
             ringRenderer.color = new Color(1f, 0.15f, 0.22f, 0.16f);
             ringRenderer.sortingOrder = 18;
         }
