@@ -34,6 +34,7 @@ namespace Swarm
         public event Action<int, int, byte> CellStateChanged;
         public event Action<float, int> CaptureCompleted;
         public event Action<bool> TrailExposureChanged;
+        public event Action TrailCut;
 
         public void Initialize(Transform player, Vector2 halfExtents)
         {
@@ -46,6 +47,36 @@ namespace Swarm
         {
             if (x < 0 || x >= GridWidth || y < 0 || y >= GridHeight) return Neutral;
             return _cells[y * GridWidth + x];
+        }
+
+        public bool TryGetTrailTarget(out Vector3 worldPosition)
+        {
+            if (_trail.Count == 0)
+            {
+                worldPosition = Vector3.zero;
+                return false;
+            }
+
+            int sample = _trail[Mathf.Clamp(_trail.Count / 3, 0, _trail.Count - 1)];
+            worldPosition = CellToWorld(sample);
+            return true;
+        }
+
+        public bool TryCutAtWorldPosition(Vector3 worldPosition)
+        {
+            if (!_drawingTrail || _trail.Count == 0) return false;
+            WorldToCell(worldPosition, out int x, out int y);
+            int index = y * GridWidth + x;
+            if (_cells[index] != Trail) return false;
+
+            for (int i = 0; i < _trail.Count; i++)
+                SetCell(_trail[i], Neutral);
+
+            _trail.Clear();
+            _drawingTrail = false;
+            TrailExposureChanged?.Invoke(false);
+            TrailCut?.Invoke();
+            return true;
         }
 
         private void SeedHome()
@@ -172,6 +203,18 @@ namespace Swarm
             if (state == Owned) _ownedCells++;
             _cells[index] = state;
             CellStateChanged?.Invoke(index % GridWidth, index / GridWidth, state);
+        }
+
+        private Vector3 CellToWorld(int index)
+        {
+            int x = index % GridWidth;
+            int y = index / GridWidth;
+            float nx = (x + 0.5f) / GridWidth;
+            float ny = (y + 0.5f) / GridHeight;
+            return new Vector3(
+                Mathf.Lerp(-_halfExtents.x, _halfExtents.x, nx),
+                Mathf.Lerp(-_halfExtents.y, _halfExtents.y, ny),
+                0f);
         }
 
         private void WorldToCell(Vector3 world, out int x, out int y)
