@@ -81,6 +81,12 @@ namespace Swarm
             match.Initialize(input, motor, territory, swarm, hud);
             match.BindRival(rival);
 
+            var telemetryObject = new GameObject("FirstTestTelemetry");
+            telemetryObject.transform.SetParent(root.transform, false);
+            var telemetry = telemetryObject.AddComponent<FirstTestTelemetry>();
+            telemetry.Initialize(match, territory, swarm);
+            hud.BindTelemetry(telemetry);
+
             territory.CaptureCompleted += (percent, cells) =>
             {
                 avatarPresenter.Pulse(1.7f);
