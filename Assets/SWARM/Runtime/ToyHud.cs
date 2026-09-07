@@ -135,13 +135,13 @@ namespace Swarm
             if (_territory != null && _territory.CaptureCount == 0)
             {
                 if (_territory.IsTrailExposed)
-                    return "VOLVÉ A TU COLOR • EL ROJO PUEDE CORTAR TU RASTRO";
+                    return "VOLVÉ A TU COLOR PARA CERRAR LA VUELTA";
                 return "SALÍ DE TU COLOR • HACÉ UNA VUELTA • VOLVÉ";
             }
             if (_territory != null && _territory.IsTrailExposed)
                 return "¡CERRÁ LA VUELTA ANTES DE QUE EL ROJO TE CORTE!";
             if (ownedPercent < 0.15f)
-                return "CERRÁ VUELTAS MÁS GRANDES • CONQUISTÁ EL MAPA";
+                return "CERRÁ VUELTAS MÁS GRANDES • CUIDATE DEL ROJO";
             return "DOMINÁ TODO LO QUE PUEDAS ANTES DE QUE TERMINE EL TIEMPO";
         }
 
