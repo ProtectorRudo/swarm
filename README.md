@@ -1,6 +1,6 @@
 # SWARM
 
-One-hand portrait mobile arena prototype built with Unity.
+One-hand portrait mobile arena game prototype built with Unity.
 
 ## Product laws
 
@@ -11,10 +11,27 @@ One-hand portrait mobile arena prototype built with Unity.
 
 ## Current milestone
 
-`SWARM 0.1 — The Toy`
+`SWARM 0.2 — First Test Slice`
 
-Goal: validate whether **move -> collect -> grow** already feels satisfying on a real phone.
+Core loop under test:
 
-Working branch: `feature/swarm-0.1-toy`
+`move -> collect -> grow -> leave territory -> expose trail -> close capture -> avoid rival cut -> score -> replay`
+
+Working branch: `feature/swarm-0.2-first-test`
 
 Target editor: Unity `6000.3.22f1` (Unity 6.3 LTS).
+
+Target runtime: Android, portrait, ARM64, IL2CPP, Linear color, URP 2D Renderer.
+
+## First-test scope
+
+The build includes direct one-pointer movement, pickups and swarm growth, logical/visual follower separation, grid territory capture, one lightweight trail-hunting rival, a 60-second match loop, one-tap replay, and local first-test telemetry.
+
+It intentionally does **not** yet include final character art, mutations, multiple rivals, real progression, multiplayer, 3D avatars, dances, celebrations, shops, or LiveOps.
+
+## Handoff and test docs
+
+- `docs/CODEX_HANDOFF_0_2.md` — Unity/Codex integration and Android build procedure.
+- `docs/TEST_PLAN_0_2.md` — phone-test acceptance criteria and metrics.
+- `docs/ARCHITECTURE.md` — architectural rules.
+- `docs/PRODUCT_RULES.md` — product constraints.
