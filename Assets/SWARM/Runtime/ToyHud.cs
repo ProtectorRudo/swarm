@@ -8,6 +8,7 @@ namespace Swarm
         private SwarmController _swarm;
         private TerritorySystem _territory;
         private MatchDirector _match;
+        private FirstTestTelemetry _telemetry;
 
         private GUIStyle _titleStyle;
         private GUIStyle _instructionStyle;
@@ -34,6 +35,11 @@ namespace Swarm
         {
             _match = match;
             _territory = territory;
+        }
+
+        public void BindTelemetry(FirstTestTelemetry telemetry)
+        {
+            _telemetry = telemetry;
         }
 
         public void NotifyPickup()
@@ -141,11 +147,25 @@ namespace Swarm
 
         private void DrawResult(float width, float height)
         {
-            GUI.Box(new Rect(45f, height * 0.28f, width - 90f, 430f), GUIContent.none);
+            GUI.Box(new Rect(45f, height * 0.24f, width - 90f, 570f), GUIContent.none);
             string verdict = _resultPercent >= 0.25f ? "DOMINASTE" : _resultPercent >= 0.12f ? "BUENA EXPANSIÓN" : "PODÉS CRECER MÁS";
-            GUI.Label(new Rect(70f, height * 0.31f, width - 140f, 90f), verdict, _resultStyle);
-            GUI.Label(new Rect(70f, height * 0.39f, width - 140f, 150f), (_resultPercent * 100f).ToString("0.0") + "% DEL MAPA\nSWARM  " + _resultSwarm, _resultSubStyle);
-            GUI.Label(new Rect(70f, height * 0.53f, width - 140f, 100f), "TOCÁ PARA JUGAR OTRA", _instructionStyle);
+            GUI.Label(new Rect(70f, height * 0.27f, width - 140f, 90f), verdict, _resultStyle);
+            GUI.Label(new Rect(70f, height * 0.35f, width - 140f, 135f), (_resultPercent * 100f).ToString("0.0") + "% DEL MAPA\nSWARM FINAL  " + _resultSwarm, _resultSubStyle);
+
+            if (_telemetry != null)
+            {
+                string firstCapture = _telemetry.TimeToFirstCapture >= 0f
+                    ? _telemetry.TimeToFirstCapture.ToString("0.0") + "s"
+                    : "NO";
+                string metrics =
+                    "PRIMERA CAPTURA  " + firstCapture +
+                    "\nCAPTURAS  " + _telemetry.Captures +
+                    "   •   CORTES  " + _telemetry.Cuts +
+                    "   •   MÁX SWARM  " + _telemetry.MaxSwarm;
+                GUI.Label(new Rect(75f, height * 0.47f, width - 150f, 120f), metrics, _debugStyle);
+            }
+
+            GUI.Label(new Rect(70f, height * 0.58f, width - 140f, 100f), "TOCÁ PARA JUGAR OTRA", _instructionStyle);
         }
 
         private void EnsureStyles()
@@ -172,9 +192,10 @@ namespace Swarm
             _debugStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 18
+                fontSize = 18,
+                wordWrap = true
             };
-            _debugStyle.normal.textColor = new Color(1f, 1f, 1f, 0.48f);
+            _debugStyle.normal.textColor = new Color(1f, 1f, 1f, 0.55f);
 
             _resultStyle = new GUIStyle(GUI.skin.label)
             {
