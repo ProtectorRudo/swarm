@@ -48,6 +48,7 @@ namespace Swarm
             camera.backgroundColor = new Color(0.055f, 0.068f, 0.105f, 1f);
             var cameraRig = cameraObject.AddComponent<CameraRig>();
             cameraRig.Initialize(camera, player.transform);
+            cameraRig.BindSwarm(swarm);
 
             var territoryObject = new GameObject("Territory");
             territoryObject.transform.SetParent(root.transform, false);
