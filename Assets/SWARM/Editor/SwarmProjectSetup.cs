@@ -55,21 +55,23 @@ namespace Swarm.Editor
                 AssetDatabase.CreateFolder("Assets/SWARM", "Settings");
 
             var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
-            if (pipeline == null)
+            var renderer = AssetDatabase.LoadAssetAtPath<Renderer2DData>(RendererPath);
+            if (pipeline == null || renderer == null)
             {
-                pipeline = UniversalRenderPipelineAsset.Create();
-                AssetDatabase.CreateAsset(pipeline, PipelinePath);
-
                 if (AssetDatabase.LoadAssetAtPath<Object>(BuiltinRendererTempPath) != null)
                     AssetDatabase.DeleteAsset(BuiltinRendererTempPath);
                 if (AssetDatabase.LoadAssetAtPath<Object>(RendererPath) != null)
                     AssetDatabase.DeleteAsset(RendererPath);
+                if (AssetDatabase.LoadAssetAtPath<Object>(PipelinePath) != null)
+                    AssetDatabase.DeleteAsset(PipelinePath);
 
-                pipeline.LoadBuiltinRendererData(RendererType._2DRenderer);
-                string moveError = AssetDatabase.MoveAsset(BuiltinRendererTempPath, RendererPath);
-                if (!string.IsNullOrEmpty(moveError))
-                    throw new System.InvalidOperationException("SWARM URP 2D renderer move failed: " + moveError);
+                renderer = ScriptableObject.CreateInstance<Renderer2DData>();
+                AssetDatabase.CreateAsset(renderer, RendererPath);
+                ResourceReloader.ReloadAllNullIn(renderer, "Packages/com.unity.render-pipelines.universal");
 
+                pipeline = UniversalRenderPipelineAsset.Create(renderer);
+                AssetDatabase.CreateAsset(pipeline, PipelinePath);
+                EditorUtility.SetDirty(renderer);
                 EditorUtility.SetDirty(pipeline);
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
