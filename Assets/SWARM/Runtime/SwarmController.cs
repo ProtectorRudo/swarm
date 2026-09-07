@@ -72,6 +72,7 @@ namespace Swarm
 
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = RuntimeArt.Circle;
+                RuntimeArt.Configure(renderer);
                 float hueShift = (index % 7) * 0.012f;
                 renderer.color = new Color(1f, 0.62f + hueShift, 0.16f, 0.93f);
                 renderer.sortingOrder = 10 + index % 3;
