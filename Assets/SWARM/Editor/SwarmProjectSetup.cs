@@ -62,14 +62,17 @@ namespace Swarm.Editor
 
                 if (AssetDatabase.LoadAssetAtPath<Object>(BuiltinRendererTempPath) != null)
                     AssetDatabase.DeleteAsset(BuiltinRendererTempPath);
+                if (AssetDatabase.LoadAssetAtPath<Object>(RendererPath) != null)
+                    AssetDatabase.DeleteAsset(RendererPath);
 
                 pipeline.LoadBuiltinRendererData(RendererType._2DRenderer);
                 string moveError = AssetDatabase.MoveAsset(BuiltinRendererTempPath, RendererPath);
                 if (!string.IsNullOrEmpty(moveError))
-                    Debug.LogError("SWARM URP 2D renderer move failed: " + moveError);
+                    throw new System.InvalidOperationException("SWARM URP 2D renderer move failed: " + moveError);
 
                 EditorUtility.SetDirty(pipeline);
                 AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
             }
 
             GraphicsSettings.defaultRenderPipeline = pipeline;
