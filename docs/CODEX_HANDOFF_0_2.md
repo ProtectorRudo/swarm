@@ -2,7 +2,7 @@
 
 ## Goal
 
-Integrate the first meaningful phone-test slice exactly as authored, verify Unity/Android compatibility, run a smoke test, and generate the APK. Do not redesign gameplay or architecture.
+Integrate the first meaningful phone-test slice exactly as authored, verify Unity/Android compatibility, normalize the project after its first Unity import, run a smoke test, and generate the APK. Do not redesign gameplay or architecture.
 
 ## Source
 
@@ -30,32 +30,40 @@ Non-negotiable product laws:
 2. Checkout `feature/swarm-0.2-first-test`.
 3. Verify HEAD against the commit supplied in the handoff message from ChatGPT.
 4. Open with Unity `6000.3.22f1`.
-5. Let package import and project auto-setup finish.
+5. Let package import and project auto-setup finish completely.
 6. Confirm the generated project uses URP with the 2D Renderer and Linear color space.
 7. Confirm there are zero C# compile errors.
 8. If needed, run `SWARM > Setup Project` once.
-9. Enter Play Mode and perform the smoke test below.
-10. Fix only the smallest technical blocker needed for compile/runtime. Do not rebalance or redesign by preference.
-11. Commit any required integration fix back to the same branch with a clear message.
-12. Build Android APK.
+9. Normalize the repository after this first Unity import: include Unity-generated `.meta` files and generated source/configuration artifacts that belong in version control, including the generated SWARM scene, SWARM URP/2D Renderer assets, relevant `ProjectSettings`, and package lock/config files where Unity creates them.
+10. Never commit generated/cache/output folders such as `Library`, `Temp`, `Logs`, `obj`, or `Builds`.
+11. Commit the first-import normalization back to the same branch with a clear message such as `chore: normalize Unity project after first import`.
+12. Enter Play Mode and perform the smoke test below.
+13. Fix only the smallest technical blocker needed for compile/runtime. Do not rebalance or redesign by preference.
+14. Commit any required integration fix back to the same branch with a clear message.
+15. Build Android APK.
 
 ## Smoke test
 
 Verify in Play Mode:
 
 - portrait orientation;
+- only one pointer is required/used;
 - drag with one pointer moves the avatar;
 - releasing stops/decelerates movement correctly;
-- pickups magnetize at short range and increase SWARM count;
+- camera stays sensibly framed inside arena bounds;
+- normal pickups magnetize at short range and increase SWARM count;
 - cyan bonus pickups add more mass;
+- pickup feedback audio plays;
 - visible followers trail the avatar;
-- avatar grows visually without changing gameplay hitbox logic;
+- avatar grows visually without changing gameplay logic;
 - initial territory appears around spawn;
 - leaving owned territory paints an exposed trail;
 - re-entering owned territory closes a capture and increases AREA %;
 - first capture is safe from rival punishment;
+- red rival is visually passive before first capture and activates afterward;
 - after first capture the red rival can hunt/cut exposed trails;
 - a cut removes exposed trail, costs swarm mass, and resets player home;
+- capture/cut feedback is readable and audible;
 - match timer begins only after first movement;
 - match ends after 60 seconds;
 - result screen appears;
@@ -87,9 +95,10 @@ Expected log markers:
 
 Return:
 
-- final commit SHA;
+- final commit SHA after Unity normalization/fixes;
 - whether Unity compiled with zero C# errors;
 - technical changes required, if any;
+- list of generated source/config files committed during normalization;
 - APK path;
 - APK size;
 - relevant warnings/errors;
