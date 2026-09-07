@@ -44,11 +44,12 @@ namespace Swarm
             cameraObject.tag = "MainCamera";
             cameraObject.transform.SetParent(root.transform, false);
             cameraObject.transform.position = new Vector3(0f, 0f, -10f);
+            cameraObject.AddComponent<AudioListener>();
             var camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.055f, 0.068f, 0.105f, 1f);
             var cameraRig = cameraObject.AddComponent<CameraRig>();
-            cameraRig.Initialize(camera, player.transform);
+            cameraRig.Initialize(camera, player.transform, ArenaHalfExtents);
             cameraRig.BindSwarm(swarm);
 
             var territoryObject = new GameObject("Territory");
@@ -70,16 +71,21 @@ namespace Swarm
             var hud = hudObject.AddComponent<ToyHud>();
             hud.Initialize(input, swarm);
 
-            var pickupsObject = new GameObject("Pickups");
-            pickupsObject.transform.SetParent(root.transform, false);
-            var pickups = pickupsObject.AddComponent<PickupSystem>();
-            pickups.Initialize(player.transform, swarm, avatarPresenter, cameraRig, hud, ArenaHalfExtents);
-
             var matchObject = new GameObject("MatchDirector");
             matchObject.transform.SetParent(root.transform, false);
             var match = matchObject.AddComponent<MatchDirector>();
             match.Initialize(input, motor, territory, swarm, hud);
             match.BindRival(rival);
+
+            var feedbackObject = new GameObject("FeedbackDirector");
+            feedbackObject.transform.SetParent(root.transform, false);
+            var feedback = feedbackObject.AddComponent<FeedbackDirector>();
+            feedback.Initialize(territory, match);
+
+            var pickupsObject = new GameObject("Pickups");
+            pickupsObject.transform.SetParent(root.transform, false);
+            var pickups = pickupsObject.AddComponent<PickupSystem>();
+            pickups.Initialize(player.transform, swarm, avatarPresenter, cameraRig, hud, feedback, ArenaHalfExtents);
 
             var telemetryObject = new GameObject("FirstTestTelemetry");
             telemetryObject.transform.SetParent(root.transform, false);
