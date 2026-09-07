@@ -9,6 +9,8 @@ namespace Swarm
     public sealed class FeedbackDirector : MonoBehaviour
     {
         private AudioSource _source;
+        private TerritorySystem _territory;
+        private MatchDirector _match;
         private AudioClip _pickup;
         private AudioClip _bonusPickup;
         private AudioClip _capture;
@@ -17,6 +19,9 @@ namespace Swarm
 
         public void Initialize(TerritorySystem territory, MatchDirector match)
         {
+            _territory = territory;
+            _match = match;
+
             _source = gameObject.AddComponent<AudioSource>();
             _source.playOnAwake = false;
             _source.spatialBlend = 0f;
@@ -27,13 +32,13 @@ namespace Swarm
             _cut = CreateSweep("TrailCut", 190f, 72f, 0.23f, 0.36f);
             _matchEnd = CreateSweep("MatchEnd", 390f, 760f, 0.24f, 0.30f);
 
-            if (territory != null)
+            if (_territory != null)
             {
-                territory.CaptureCompleted += OnCapture;
-                territory.TrailCut += OnTrailCut;
+                _territory.CaptureCompleted += OnCapture;
+                _territory.TrailCut += OnTrailCut;
             }
-            if (match != null)
-                match.MatchEnded += OnMatchEnded;
+            if (_match != null)
+                _match.MatchEnded += OnMatchEnded;
         }
 
         public void NotifyPickup(bool bonus)
@@ -86,16 +91,13 @@ namespace Swarm
 
         private void OnDestroy()
         {
-            var territory = FindFirstObjectByType<TerritorySystem>();
-            if (territory != null)
+            if (_territory != null)
             {
-                territory.CaptureCompleted -= OnCapture;
-                territory.TrailCut -= OnTrailCut;
+                _territory.CaptureCompleted -= OnCapture;
+                _territory.TrailCut -= OnTrailCut;
             }
-
-            var match = FindFirstObjectByType<MatchDirector>();
-            if (match != null)
-                match.MatchEnded -= OnMatchEnded;
+            if (_match != null)
+                _match.MatchEnded -= OnMatchEnded;
         }
     }
 }
