@@ -43,6 +43,7 @@ namespace Swarm
 
             var renderer = gameObject.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
+            RuntimeArt.Configure(renderer);
             renderer.sortingOrder = -40;
 
             transform.position = new Vector3(0f, 0f, 0.1f);
