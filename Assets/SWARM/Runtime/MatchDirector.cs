@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -18,6 +19,7 @@ namespace Swarm
         public float TimeRemaining => Mathf.Max(0f, _timeRemaining);
         public bool HasStarted { get; private set; }
         public bool IsEnded { get; private set; }
+        public event Action MatchEnded;
 
         public void Initialize(
             OneHandInputSource input,
@@ -70,6 +72,7 @@ namespace Swarm
             if (_rival != null) _rival.enabled = false;
             if (_hud != null)
                 _hud.ShowResult(_territory != null ? _territory.OwnedPercent : 0f, _swarm != null ? _swarm.Count : 0);
+            MatchEnded?.Invoke();
         }
 
         private static void Restart()
