@@ -2,6 +2,8 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Swarm.Editor
 {
@@ -9,6 +11,10 @@ namespace Swarm.Editor
     public static class SwarmProjectSetup
     {
         public const string ScenePath = "Assets/SWARM/Scenes/SwarmToy.unity";
+        public const string SettingsFolder = "Assets/SWARM/Settings";
+        public const string PipelinePath = SettingsFolder + "/SWARM_URP.asset";
+        public const string RendererPath = SettingsFolder + "/SWARM_2DRenderer.asset";
+        private const string BuiltinRendererTempPath = "Assets/UniversalRenderer.asset";
 
         static SwarmProjectSetup()
         {
@@ -20,6 +26,7 @@ namespace Swarm.Editor
         {
             EnsureScene();
             EnsureBuildSettings();
+            EnsureUrp2D();
             ConfigurePlayer();
         }
 
@@ -42,10 +49,38 @@ namespace Swarm.Editor
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         }
 
+        private static void EnsureUrp2D()
+        {
+            if (!AssetDatabase.IsValidFolder(SettingsFolder))
+                AssetDatabase.CreateFolder("Assets/SWARM", "Settings");
+
+            var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+            if (pipeline == null)
+            {
+                pipeline = UniversalRenderPipelineAsset.Create();
+                AssetDatabase.CreateAsset(pipeline, PipelinePath);
+
+                if (AssetDatabase.LoadAssetAtPath<Object>(BuiltinRendererTempPath) != null)
+                    AssetDatabase.DeleteAsset(BuiltinRendererTempPath);
+
+                pipeline.LoadBuiltinRendererData(RendererType._2DRenderer);
+                string moveError = AssetDatabase.MoveAsset(BuiltinRendererTempPath, RendererPath);
+                if (!string.IsNullOrEmpty(moveError))
+                    Debug.LogError("SWARM URP 2D renderer move failed: " + moveError);
+
+                EditorUtility.SetDirty(pipeline);
+                AssetDatabase.SaveAssets();
+            }
+
+            GraphicsSettings.defaultRenderPipeline = pipeline;
+            QualitySettings.renderPipeline = pipeline;
+        }
+
         private static void ConfigurePlayer()
         {
             PlayerSettings.companyName = "ProtectorRudo";
             PlayerSettings.productName = "SWARM";
+            PlayerSettings.colorSpace = ColorSpace.Linear;
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
