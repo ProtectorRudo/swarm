@@ -54,6 +54,7 @@ namespace Swarm
 
             _body = _visualRoot.gameObject.AddComponent<SpriteRenderer>();
             _body.sprite = RuntimeArt.Circle;
+            RuntimeArt.Configure(_body);
             _body.color = new Color(0.97f, 0.75f, 0.24f, 1f);
             _body.sortingOrder = 20;
             _visualRoot.localScale = Vector3.one * 1.15f;
@@ -71,6 +72,7 @@ namespace Swarm
 
             var white = eye.gameObject.AddComponent<SpriteRenderer>();
             white.sprite = RuntimeArt.Circle;
+            RuntimeArt.Configure(white);
             white.color = Color.white;
             white.sortingOrder = 21;
 
@@ -80,6 +82,7 @@ namespace Swarm
             pupil.localScale = Vector3.one * 0.48f;
             var black = pupil.gameObject.AddComponent<SpriteRenderer>();
             black.sprite = RuntimeArt.Circle;
+            RuntimeArt.Configure(black);
             black.color = new Color(0.12f, 0.14f, 0.18f, 1f);
             black.sortingOrder = 22;
             return eye;
