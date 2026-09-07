@@ -14,6 +14,7 @@ namespace Swarm
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
             Screen.orientation = ScreenOrientation.Portrait;
+            Input.multiTouchEnabled = false;
 
             var root = new GameObject("SWARM_ROOT");
 
