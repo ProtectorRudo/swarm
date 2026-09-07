@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// First-test rival: wanders cheaply, but when the player exposes a trail it hunts the trail.
+    /// First-test rival: wanders cheaply, then starts hunting exposed trail after the player proves the capture loop once.
     /// No per-frame world scans and no physics dependency.
     /// </summary>
     public sealed class RivalBot : MonoBehaviour
@@ -45,18 +45,20 @@ namespace Swarm
         {
             if (_territory == null) return;
 
+            bool threatActive = _territory.CaptureCount > 0;
+
             _decisionTimer -= Time.deltaTime;
             if (_decisionTimer <= 0f)
             {
                 _decisionTimer = 0.22f;
-                ChooseTarget();
+                ChooseTarget(threatActive);
             }
 
             Vector3 delta = _wanderTarget - transform.position;
             if (delta.sqrMagnitude > 0.01f)
             {
                 Vector3 direction = delta.normalized;
-                float huntBoost = _territory.IsTrailExposed ? 1.24f : 1f;
+                float huntBoost = threatActive && _territory.IsTrailExposed ? 1.24f : 1f;
                 transform.position += direction * (Speed * huntBoost * Time.deltaTime);
             }
 
@@ -65,16 +67,17 @@ namespace Swarm
             p.y = Mathf.Clamp(p.y, -_halfExtents.y + 0.4f, _halfExtents.y - 0.4f);
             transform.position = p;
 
-            _territory.TryCutAtWorldPosition(transform.position);
+            if (threatActive)
+                _territory.TryCutAtWorldPosition(transform.position);
 
-            _phase += Time.deltaTime * 4.2f;
-            float pulse = 1f + Mathf.Sin(_phase) * 0.045f;
+            _phase += Time.deltaTime * (threatActive ? 4.2f : 2.4f);
+            float pulse = 1f + Mathf.Sin(_phase) * (threatActive ? 0.045f : 0.020f);
             transform.localScale = Vector3.one * (1.05f * pulse);
         }
 
-        private void ChooseTarget()
+        private void ChooseTarget(bool threatActive)
         {
-            if (_territory.TryGetTrailTarget(out Vector3 trailTarget))
+            if (threatActive && _territory.TryGetTrailTarget(out Vector3 trailTarget))
             {
                 _wanderTarget = trailTarget;
                 return;
