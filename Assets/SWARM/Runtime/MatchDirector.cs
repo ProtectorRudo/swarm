@@ -16,6 +16,7 @@ namespace Swarm
         private float _timeRemaining;
 
         public float TimeRemaining => Mathf.Max(0f, _timeRemaining);
+        public bool HasStarted { get; private set; }
         public bool IsEnded { get; private set; }
 
         public void Initialize(
@@ -41,6 +42,13 @@ namespace Swarm
 
         private void Update()
         {
+            if (!HasStarted)
+            {
+                if (_input != null && _input.HasEverMoved)
+                    HasStarted = true;
+                return;
+            }
+
             if (!IsEnded)
             {
                 _timeRemaining -= Time.deltaTime;
