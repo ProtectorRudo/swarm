@@ -30,13 +30,14 @@ namespace Swarm
             player.transform.position = Vector3.zero;
             var motor = player.AddComponent<PlayerMotor>();
             motor.Initialize(input, ArenaHalfExtents);
-            var presenter = player.AddComponent<BlobPresenter>();
-            presenter.Initialize(motor);
+            var avatarPresenter = player.AddComponent<BlobPresenter>();
+            avatarPresenter.Initialize(motor);
 
             var swarmObject = new GameObject("SwarmVisuals");
             swarmObject.transform.SetParent(root.transform, false);
             var swarm = swarmObject.AddComponent<SwarmController>();
             swarm.Initialize(player.transform, motor);
+            avatarPresenter.BindSwarm(swarm);
 
             var cameraObject = new GameObject("Main Camera");
             cameraObject.tag = "MainCamera";
@@ -48,6 +49,15 @@ namespace Swarm
             var cameraRig = cameraObject.AddComponent<CameraRig>();
             cameraRig.Initialize(camera, player.transform);
 
+            var territoryObject = new GameObject("Territory");
+            territoryObject.transform.SetParent(root.transform, false);
+            var territory = territoryObject.AddComponent<TerritorySystem>();
+            territory.Initialize(player.transform, ArenaHalfExtents);
+
+            var territoryVisualObject = new GameObject("TerritoryVisual");
+            territoryVisualObject.transform.SetParent(root.transform, false);
+            territoryVisualObject.AddComponent<TerritoryPresenter>().Initialize(territory, ArenaHalfExtents);
+
             var hudObject = new GameObject("HUD");
             hudObject.transform.SetParent(root.transform, false);
             var hud = hudObject.AddComponent<ToyHud>();
@@ -56,7 +66,19 @@ namespace Swarm
             var pickupsObject = new GameObject("Pickups");
             pickupsObject.transform.SetParent(root.transform, false);
             var pickups = pickupsObject.AddComponent<PickupSystem>();
-            pickups.Initialize(player.transform, swarm, presenter, cameraRig, hud, ArenaHalfExtents);
+            pickups.Initialize(player.transform, swarm, avatarPresenter, cameraRig, hud, ArenaHalfExtents);
+
+            var matchObject = new GameObject("MatchDirector");
+            matchObject.transform.SetParent(root.transform, false);
+            var match = matchObject.AddComponent<MatchDirector>();
+            match.Initialize(input, motor, territory, swarm, hud);
+
+            territory.CaptureCompleted += (percent, cells) =>
+            {
+                avatarPresenter.Pulse(1.7f);
+                cameraRig.Punch(Mathf.Clamp(0.24f + cells * 0.006f, 0.28f, 0.85f));
+                hud.NotifyCapture(percent, cells);
+            };
         }
     }
 }
