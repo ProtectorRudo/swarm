@@ -8,8 +8,8 @@ namespace Swarm
     public sealed class TerritoryPresenter : MonoBehaviour
     {
         private static readonly Color NeutralColor = new Color(0f, 0f, 0f, 0f);
-        private static readonly Color OwnedColor = new Color(1f, 0.64f, 0.16f, 0.34f);
-        private static readonly Color TrailColor = new Color(1f, 0.88f, 0.25f, 0.92f);
+        private static readonly Color PlayerColor = new Color(1f, 0.64f, 0.16f, 0.34f);
+        private static readonly Color RivalColor = new Color(1f, 0.18f, 0.26f, 0.30f);
 
         private TerritorySystem _territory;
         private Texture2D _texture;
@@ -77,8 +77,8 @@ namespace Swarm
 
         private static Color ColorFor(byte state)
         {
-            if (state == TerritorySystem.Owned) return OwnedColor;
-            if (state == TerritorySystem.Trail) return TrailColor;
+            if (state == TerritorySystem.PlayerOwned) return PlayerColor;
+            if (state == TerritorySystem.RivalOwned) return RivalColor;
             return NeutralColor;
         }
     }
