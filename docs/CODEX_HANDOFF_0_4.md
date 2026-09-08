@@ -1,4 +1,4 @@
-# SWARM 0.4 — Battle Arena / Codex Handoff
+# SWARM 0.4 — Battle Arena + Crossfire / Codex Handoff
 
 ## Source of truth
 
@@ -8,65 +8,68 @@
 - Android modules: Android Build Support + SDK/NDK + OpenJDK
 - Target APK: `Builds/Android/SWARM-0.4-battle-arena.apk`
 
-## Why 0.4 exists
+## Product change in this revision
 
-The 0.3 phone test/review exposed a presentation and fantasy problem: the follow camera hid most of the battlefield and the experience still felt like a small local encounter. 0.4 turns SWARM into a true visible free-for-all.
+0.4 keeps the full-map eight-army battle arena, but direct contact is no longer the primary combat mechanic.
 
-The entire arena must be visible at once. The player should see every colored base, every opponent and the shared food field from the first second. The game is a battle between growing armies, not a duel against one red stalker.
+The new combat experiment is ranged:
+
+> Drag with one thumb to move. Make a quick first tap, then press-and-hold the second tap to fire continuously with that same thumb. While holding fire, dragging still moves and aims. Projectiles shrink the enemy SWARM. At zero, that army is KO'd and respawns at its base.
+
+There is no attack button, second stick, second finger or separate aim gesture.
 
 ## Product law
 
 The intended mental model is:
 
-> Todos salen de su base. Juntá bichitos, hacé crecer tu ejército, comete a los más chicos y escapá de los más grandes. Tu base y tu color te ayudan a defenderte. Al final gana el SWARM más grande.
-
-One thumb only. No attack button. No secondary gesture. No camera hunting. No special AI obsession with the human player.
+> Todos salen de su base. Juntá bichitos, hacé crecer tu ejército, disparale a los demás para achicarles el SWARM y escapá cuando te superan. Tu base y tu color ayudan a defenderte. Al final gana el SWARM más grande.
 
 ## Intended runtime behavior
 
-1. The complete map fits on the portrait screen at all times.
-2. Eight bases are visible around the perimeter.
-3. Owner 1 is the human player; owners 2-8 are seven autonomous bots.
-4. All participants begin with SWARM 3 at their own base.
-5. Before the human first moves: timer is stopped, bots are visible but stationary, food is visible but cannot be collected.
-6. On the first real player movement all seven bots launch at the same time.
-7. The field contains 132 persistent visible food particles.
-8. Normal food is +1, cyan rare food is +3, pink mega food is +5.
-9. High-value food is biased toward the center.
-10. Every participant can collect the same food.
-11. Every participant grows a visible follower swarm in its own color.
-12. Every participant paints secondary influence simply by moving.
-13. Painting enemy influence can cost swarm units.
-14. Bots evaluate all eight participants, not the human specially.
-15. Bots flee larger nearby armies, hunt smaller nearby armies and otherwise seek food.
-16. Bots fight bots. Off-screen combat is impossible because the whole map is visible.
-17. Contact resolves combat automatically; there is no attack button.
-18. A clearly stronger army can decisively consume a weaker army and absorb part of it.
-19. Close fights trade units over combat ticks until one side disengages or is defeated.
-20. Fighting in your own color gives a defense bonus; fighting inside your base gives a stronger defense bonus.
-21. Defeated armies respawn at their own base with SWARM 5 and short protection.
-22. The final 15 seconds activate FINAL RUSH: bots become more aggressive and newly relocated food is biased toward the center.
-23. HUD labels every bot with color/name/count and shows a live Top 4 ordered by current SWARM size.
-24. Match lasts 60 seconds from the first movement. The winner/rank is determined by current SWARM size; KO and territory are only tiny tie-breakers. Result also shows KOs, deaths, map and final swarm.
+1. Entire portrait arena remains visible at once.
+2. Eight colored bases are visible around the perimeter.
+3. Owner 1 is the human; owners 2-8 are seven autonomous bots.
+4. Everyone starts at SWARM 3 in their own base.
+5. Before the first real human movement: timer is stopped, bots are stationary and food is visible but inactive.
+6. First movement starts all seven bots, food collection, territory paint and the 60-second timer.
+7. 132 persistent visible food particles exist; normal +1, cyan +3, pink +5.
+8. Every participant can collect the same field and visibly grow followers.
+9. Every participant paints secondary influence while moving.
+10. Complete camera stays fixed to the arena; it never follows the human.
+11. The human fires using one-thumb double-tap-and-hold.
+12. The second press may continue dragging: movement and firing coexist with one finger.
+13. Player bullets use current/last movement direction with mild forward aim assist; there is no auto-lock behind the player.
+14. All projectiles are centrally pooled/simulated; projectile GameObjects have no individual Update.
+15. Bots use the same bullets and damage rules as the player.
+16. Bots choose ranged targets symmetrically among all participants; they do not prefer the human.
+17. Bots can shoot other bots while the human is elsewhere.
+18. One damaging projectile removes SWARM units. Own territory/base can absorb part of projectile pressure through the defense multiplier.
+19. Visible rival labels update immediately as bullets shrink armies.
+20. KO gives the shooter a small +3 SWARM reward.
+21. Defeated armies respawn in their own base with SWARM 5 and short invulnerability.
+22. Bots under fire can retreat, especially when small.
+23. Final 15 seconds activate FINAL RUSH: more aggressive bot firing/hunting and center-biased food relocation.
+24. Top 4 is based primarily on current SWARM.
+25. At 0 seconds the army with the largest current SWARM wins; KOs/territory only break exact ties.
 
 ## Integration task
 
 Your role is integration, compile validation, smoke testing and APK generation only.
 
-Do not redesign gameplay unless a concrete runtime defect makes the intended behavior impossible. Do not collapse this back into one red rival. Do not restore a follow camera.
+Do not redesign the controls or combat. Do not replace double-tap-and-hold with a button, second stick or second finger. Do not restore contact combat as the main damage mechanic. Do not restore a follow camera. Do not collapse the arena to one red rival.
 
 1. Fetch and checkout `feature/swarm-0.4-battle-arena`.
-2. Confirm the expected remote HEAD given by Mauro/ChatGPT before starting.
+2. Confirm the expected remote HEAD supplied in the handoff message before starting.
 3. Open/import with Unity `6000.3.22f1`.
-4. Allow normal Unity import/serialization.
+4. Allow normal Unity serialization/import.
 5. Confirm zero C# compile errors.
 6. Keep URP 2D, Linear color, Portrait, Android ARM64 and current project settings.
-7. If new `.meta` or legitimate Unity source/config serialization is required, commit only those source-controlled artifacts to this same branch.
-8. Fix only concrete compile/runtime integration blockers. Preserve the 0.4 design above.
+7. If Unity legitimately creates/changes `.meta` or source-controlled config, commit only the required artifacts to the same branch.
+8. Fix only concrete compile/runtime blockers. Preserve the design above.
 9. Never commit `Library`, `Temp`, `Logs`, `obj`, `Builds` or caches.
-10. Run the required smoke test.
+10. Run the smoke test below.
 11. Build with `-buildTarget Android` and `-executeMethod Swarm.Editor.SwarmBuild.BuildAndroid`.
-12. Stop after generating the APK.
+12. Stop after the APK.
 
 ## Required smoke test
 
@@ -74,57 +77,70 @@ Do not redesign gameplay unless a concrete runtime defect makes the intended beh
 - Portrait launches correctly.
 - Complete arena is visible without camera following the human.
 - All 8 colored bases are visible simultaneously.
-- Central hot zone is visible.
-- Player movement never pushes another base off-screen.
+- Central hot zone and shared food field are visible.
+- Moving to any arena edge never pushes another base off-screen.
 
 ### Start state
-- Player starts at orange bottom base with SWARM 3.
-- Seven bots are visible at seven different bases, each at SWARM 3.
-- Food is already visible across the whole map.
-- Before first movement: timer does not run and bots do not leave bases.
-- First drag starts timer and all bots begin acting.
+- Human starts at orange base with SWARM 3.
+- Seven bots are visible at their own bases with SWARM 3.
+- Food is visible before movement.
+- Before movement: timer stopped, bots stationary, no projectiles active and food cannot be collected.
+- First drag starts timer, bots, food and battle simulation.
 
-### Food / growth
-- Approximately 132 food objects remain persistent through relocation.
-- +1 / +3 / +5 food values work.
-- Human magnet remains one-thumb friendly.
-- Bots physically collect food.
-- Each bot's follower swarm visibly grows in that bot's color.
+### One-thumb fire gesture
+- Normal drag still moves exactly as before.
+- A quick tap followed by second press-and-hold sets `FireHeld`.
+- Releasing the second press stops firing.
+- While that second press remains held, dragging still moves the player.
+- Fire direction follows movement/last-facing direction.
+- Mild forward aim assist can pull toward a target in front, but does not target enemies behind the player.
+- No second finger is needed.
+- No attack UI button exists.
+- Editor Space fallback may exist only for automated/editor validation; phone truth is the one-thumb gesture.
 
-### AI / battle
+### Projectiles
+- Player bullets are visibly orange.
+- Every bot fires bullets in its own owner color.
+- Projectile pool is created once and reused; no instantiate/destroy loop during steady-state firing.
+- Crossfire from multiple armies can coexist.
+- Bullets expire or leave arena cleanly.
+- A projectile cannot damage its shooter.
+- Respawn-invulnerable targets cannot be damaged.
+- Damaging hits visibly reduce the target's SWARM count/followers.
+- Own territory/base defense can absorb some projectile pressure deterministically.
+- HUD differentiates hit, incoming hit and defended impact for the human.
+
+### AI / free-for-all
 - Bots do not preferentially target the human.
-- At least one bot-vs-bot combat can occur without human involvement.
-- Smaller bots flee clearly stronger nearby armies.
-- Stronger bots hunt reachable weaker armies.
-- Bots return toward safety after losing an exchange.
-- Contact combat requires no button.
-- Decisive size advantage can cause an immediate KO/absorb.
-- Close matchup can trade units rather than always one-shot.
-- Own territory changes effective combat strength.
-- Own base gives stronger defensive advantage.
-- Player KO respawns at orange base with SWARM 5.
-- Bot KO respawns at that bot's own base with SWARM 5.
-- Respawn protection prevents instant spawn camping.
+- At least one bot-vs-bot ranged exchange occurs without human involvement.
+- At least one bot can KO another bot with projectiles.
+- Smaller bots flee strong nearby armies.
+- Strong bots may hunt weaker armies.
+- Small bots under fire can retreat toward safety.
+- Bots still collect food and paint influence while fighting.
 
-### Territory / ranking
-- All 8 territory colors can appear.
-- Human and bots paint while moving.
-- Invading enemy influence can consume swarm units.
-- Live Top 4 is ordered by current SWARM size.
-- The final winner is the participant with the largest current SWARM (with KO/territory used only as tie-breakers).
+### KO / scoring
+- Projectile damage can reduce an army to zero and trigger KO.
+- Shooter receives +3 SWARM on KO.
+- Human KO respawns at orange base with SWARM 5 and protection.
+- Bot KO respawns at its own base with SWARM 5 and protection.
+- No immediate spawn-kill loop occurs.
+- Top 4 updates as projectile damage/growth change current SWARM.
+- Largest current SWARM is the winner at match end.
 
 ### Final rush / result
 - At 15 seconds remaining FINAL RUSH activates.
-- Newly relocated food becomes more center-biased.
-- Bots become more willing to hunt during final rush.
-- At 0 seconds all movement/battle stops.
-- Result screen shows winner, human rank out of 8, final swarm, map, KOs and deaths.
-- One tap restarts the scene.
+- Bots fire/hunt more aggressively.
+- Relocated food becomes more center-biased.
+- At 0 seconds movement/battle/projectiles stop.
+- Result screen shows winner, rank /8, SWARM, map, KOs/deaths, shots and hits.
+- One tap restarts.
 
-### Stability
+### Stability/performance
 - No recurring runtime exceptions/errors.
-- Watch allocations/GC and obvious hitching with 8 armies + up to hundreds of visible followers.
-- Record Editor FPS during an active crowded battle if possible.
+- Watch GC/allocation behavior during sustained eight-way crossfire.
+- Record crowded-battle FPS if possible.
+- Specifically stress many active bullets + 8 armies + followers + 132 pickups simultaneously.
 
 ## Build output
 
@@ -132,7 +148,7 @@ Expected:
 
 `Builds/Android/SWARM-0.4-battle-arena.apk`
 
-Expected log marker:
+Expected marker:
 
 `SWARM_BUILD_VERSION=0.4-battle-arena`
 
@@ -145,10 +161,15 @@ Report:
 - compatibility fixes made
 - Unity-generated/versioned files, if any
 - warnings that matter
-- smoke test results item by item
-- observed crowded-battle FPS if available
+- smoke test item by item
+- proof/result of double-tap-hold fire test
+- proof/result that movement still works while firing
+- proof/result of bot-vs-bot ranged combat and bot-vs-bot KO
+- all 8 bases visible simultaneously: yes/no
+- crowded crossfire FPS if available
+- max active projectiles observed if practical
 - exact APK path
-- APK real file size
+- real APK size
 - SHA-256
 
-Stop after the APK. The next product decision must come from Mauro's real phone test.
+Stop after generating the APK. The next design decision comes from Mauro's real phone test.
