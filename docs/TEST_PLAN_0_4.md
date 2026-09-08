@@ -1,8 +1,13 @@
-# SWARM 0.4 — Battle Arena Phone Test
+# SWARM 0.4 — Battle Arena + Crossfire Phone Test
 
 ## Purpose
 
-0.4 is not an art-quality test. It tests whether seeing the entire battlefield and fighting in a true eight-army free-for-all creates a stronger, clearer and more exciting core than the previous close-camera versions.
+This phone test validates two things together:
+
+1. whether the full visible eight-army arena is more exciting/readable than the old close camera;
+2. whether one-thumb double-tap-and-hold shooting is intuitive enough to become SWARM's primary combat language.
+
+This is not an art-quality test.
 
 ## Non-negotiable setup
 
@@ -10,107 +15,148 @@
 - Portrait.
 - Hold the phone with one hand only.
 - Do not support the phone with the second hand.
-- Do not explain the rules before the first match.
-- Play at least 5 matches because emergent bot-vs-bot situations vary.
+- No explanation before match 1 beyond whatever the game itself shows.
+- Play at least 5 matches.
 
-## Under-20-second comprehension test
+## Core mental model target
 
-Without prior explanation, the player should understand within 20 seconds that:
+Within 20 seconds the player should understand:
 
-1. The colored circles around the edge are bases/starting armies.
-2. Yellow/cyan/pink particles make SWARM grow.
-3. Every colored army is doing the same thing.
-4. A visibly larger-number army is dangerous to a smaller-number army.
-5. Contact is the attack; there is no attack button.
-6. Returning toward your color/base is a defensive option.
-7. The goal is to finish with the largest SWARM in the arena.
+1. every colored group is an army starting from its own base;
+2. food increases SWARM;
+3. drag moves;
+4. double tap + hold fires with the same thumb;
+5. dragging while holding fire still moves/aims;
+6. bullets reduce the other army's SWARM;
+7. when an army reaches zero it is KO'd;
+8. own color/base provides defensive value;
+9. at match end the biggest SWARM wins.
 
-Failure on any of these means the core presentation/onboarding needs revision before adding content.
+Preferred targets:
 
-## Match-by-match observations
+- understand food/growth within 8 seconds;
+- discover or follow the shooting prompt within 15 seconds;
+- intentionally hit another army within 20 seconds.
 
-For each match record:
+## Match observations
 
-- Did the full map feel readable or too tiny/crowded?
-- Could you immediately locate your orange base/player?
-- Could you tell which armies were becoming strong without searching for them?
-- Did the live Top 4 make sense just by comparing SWARM counts?
-- Did bot-vs-bot battles happen visibly?
-- Did any bot feel unfairly obsessed with you?
-- Did you consciously choose at least once to hunt a smaller rival?
-- Did you consciously choose at least once to flee a larger rival?
-- Did returning to your base ever save you?
-- Was food density satisfying or visually noisy?
-- Did high-value center food tempt you into risk?
-- Did the last 15 seconds feel more intense?
+For every match record:
+
+- Could you immediately find your orange player/base?
+- Was the complete arena readable or too small/crowded?
+- Could you see all other armies doing things without moving the camera?
+- Did the first double-tap-and-hold fire attempt work naturally?
+- Did you accidentally fire when you only wanted to move?
+- Did firing ever cancel or damage normal movement control?
+- While firing, could you still steer comfortably with the same thumb?
+- Did bullets go where you expected?
+- Was the mild aim assist helpful or did it feel like the game stole your aim?
+- Could you clearly see an enemy count shrink after hits?
+- Did you understand defended/blocked shots near territory/base?
+- Did bots visibly shoot each other?
+- Did you witness a bot-vs-bot KO?
+- Did any bot still feel obsessed with you?
+- Did you intentionally shoot a smaller rival?
+- Did you intentionally shoot while escaping a larger rival?
+- Did your base ever save you?
+- Did projectile density feel exciting or visually noisy?
+- Did FINAL RUSH feel more intense?
 - Exact second, if any, where boredom started.
-- Did you want to tap for another battle when the result appeared?
+- Did you want another match immediately?
 
 ## Result-screen metrics
 
-Capture screenshots showing:
+Capture screenshots showing as much as possible of:
 
 - rank /8
 - final SWARM
 - map %
 - KOs
 - deaths
+- shots fired
+- hits
+- time to first shot
 - time to SWARM 10
-- time to first combat
 - max SWARM
 
 ## Acceptance targets
 
-### Clarity
-- Core mental model understood in <=20 seconds.
-- Preferred: player understands food/growth within 8 seconds, size-based danger within 15 seconds, and knows that the largest final SWARM wins without external explanation.
+### Control
 
-### Agency
-- Player can intentionally pursue at least one smaller target by match 2.
-- Player can intentionally escape/return home from a larger threat by match 2.
+- One hand only for the full match.
+- Normal drag remains comfortable.
+- Double-tap-and-hold succeeds reliably after learning it once.
+- Preferred: successful fire activation on at least 8/10 deliberate attempts.
+- Accidental fire activations should be rare.
+- Releasing the hold must stop fire immediately.
+- Moving while firing must not require changing grip.
 
-### Emergence
-- At least one obvious bot-vs-bot KO in most matches.
-- No bot consistently follows the human for long stretches without a size/position reason.
-- Leader can change during a match because army sizes change.
+### Combat clarity
+
+- Player understands that bullets shrink enemy SWARM without external explanation.
+- Rival label/follower loss makes damage visible.
+- Player can deliberately damage a chosen opponent by match 2.
+- Player can recognize when own/base defense absorbed some pressure.
+- KO cause should be obvious.
+
+### Free-for-all emergence
+
+- Bot-vs-bot shooting happens in most matches.
+- Bot-vs-bot KO should happen in most sufficiently active matches.
+- No bot should consistently prefer the human without a symmetric size/distance reason.
+- Multiple independent fights may happen at once.
+- Leader can change during the match.
 
 ### Excitement
-- At least one moment per match should create a clear reaction: chase, escape, KO, being cornered, stealing high-value center food, or watching two large armies collide.
-- Final 15 seconds should feel materially more dangerous than the opening.
+
+At least one strong reaction per match should come from:
+
+- sustained crossfire;
+- chasing a damaged enemy;
+- escaping while shooting backward/along movement;
+- getting caught between two armies;
+- bot-vs-bot KO nearby;
+- stealing valuable center food during a firefight;
+- surviving at base;
+- a late FINAL RUSH comeback.
 
 ### Replay
-- After 3 matches, the player should still want to test a different risk/route/target.
-- If replay desire is absent, do not add skins, progression, mutations or more bots. Fix battle pacing first.
+
+After 3 matches, player should still want to try a different route/target/risk.
+If not, do not add skins, progression, mutations or more players. Fix the battle loop first.
 
 ### Performance
+
 - Target 60 FPS on device.
-- No repeated hitches when several armies exceed SWARM 30.
-- No input lag or missed thumb movement.
+- No repeated hitching during sustained eight-way fire.
+- No missed input while many projectiles are active.
+- No obvious GC spikes from shooting.
 
 ## Failure interpretation
 
-- **Map too small/readability fails:** tune arena scale, icon/follower scale, HUD labels or camera margin; do not return to follow camera by default.
-- **Too chaotic immediately:** reduce early food value/AI aggression or add a slightly longer opening farm phase, while keeping all armies visible.
-- **Too calm:** increase center value, hunt willingness or final-rush pressure.
-- **Player gets dogpiled:** audit target scoring; bots must treat all participants symmetrically.
-- **Combat outcome unclear:** improve number/impact feedback before adding mechanics.
-- **Base defense invisible:** strengthen base visual/feedback or simplify the bonus rule.
-- **Ranking unclear:** keep ranking tied to SWARM size; do not add hidden scoring complexity.
-- **No replay urge:** the battle loop itself failed; do not mask it with metagame systems.
+- **Double tap feels awkward:** tune timing/distance thresholds first; do not immediately add a second button.
+- **Accidental firing:** tighten first-tap duration/travel or double-tap spatial window.
+- **Hard to aim:** tune forward aim-assist cone/range before adding independent aim controls.
+- **Can't move while firing:** input design failed and must be fixed before any feature expansion.
+- **Bullets too tiny/noisy:** tune projectile scale/speed/fire cadence, not camera follow.
+- **Armies die too fast:** slow fire cadence, add defensive pressure, or increase early growth time.
+- **Armies never die:** raise projectile pressure or reduce defensive absorption.
+- **Bots dogpile human:** audit symmetric targeting.
+- **Map unreadable:** tune arena/player/follower/HUD scales while preserving full-map camera as default.
+- **No replay urge:** battle pacing/core failed; metagame will not fix it.
 
-## Out of scope for this test
+## Out of scope
 
-- final character art
+- final characters
 - mutations/skills
 - skins
 - progression
 - shop
 - ads/IAP
 - multiplayer
-- seasons
-- social systems
-- final VFX/audio
+- seasons/social
+- production VFX/audio
 - 3D avatars
 - dances/celebrations
 
-Those come only after the free-for-all core proves itself on a real phone.
+Those come only after full-map crossfire proves itself on a real phone.
