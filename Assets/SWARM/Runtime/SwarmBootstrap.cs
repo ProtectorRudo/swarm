@@ -77,6 +77,11 @@ namespace Swarm
                 battle.RegisterBot(bot);
             }
 
+            var shootingObject = new GameObject("ShootingSystem");
+            shootingObject.transform.SetParent(root.transform, false);
+            var shooting = shootingObject.AddComponent<ShootingSystem>();
+            shooting.Initialize(input, battle, ArenaHalfExtents);
+
             var hudObject = new GameObject("HUD");
             hudObject.transform.SetParent(root.transform, false);
             var hud = hudObject.AddComponent<ToyHud>();
@@ -114,8 +119,8 @@ namespace Swarm
             {
                 if (winner != BattlePalette.PlayerOwner && loser != BattlePalette.PlayerOwner) return;
                 bool playerWon = winner == BattlePalette.PlayerOwner;
-                avatarPresenter.Pulse(playerWon ? (decisive ? 1.55f : 1.0f) : 1.75f);
-                cameraRig.Punch(playerWon ? 0.16f : 0.24f);
+                avatarPresenter.Pulse(playerWon ? (decisive ? 1.55f : 0.65f) : 1.25f);
+                cameraRig.Punch(playerWon ? 0.10f : 0.16f);
             };
 
             battle.ParticipantDefeated += (winner, loser) =>
