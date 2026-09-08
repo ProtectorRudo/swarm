@@ -3,42 +3,47 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Lightweight presentation-only audio for the 0.3 phone test.
+    /// Lightweight generated audio for the Battle Arena prototype.
     /// </summary>
     public sealed class FeedbackDirector : MonoBehaviour
     {
         private AudioSource _source;
         private TerritorySystem _territory;
         private MatchDirector _match;
-        private RivalBot _rival;
+        private BattleArenaDirector _battle;
         private AudioClip _pickup;
         private AudioClip _bonusPickup;
         private AudioClip _expand;
         private AudioClip _combatWin;
         private AudioClip _combatLose;
+        private AudioClip _ko;
         private AudioClip _matchEnd;
 
-        public void Initialize(TerritorySystem territory, MatchDirector match, RivalBot rival)
+        public void Initialize(TerritorySystem territory, MatchDirector match, BattleArenaDirector battle)
         {
             _territory = territory;
             _match = match;
-            _rival = rival;
+            _battle = battle;
 
             _source = gameObject.AddComponent<AudioSource>();
             _source.playOnAwake = false;
             _source.spatialBlend = 0f;
 
-            _pickup = CreateSweep("Pickup", 720f, 980f, 0.055f, 0.18f);
-            _bonusPickup = CreateSweep("BonusPickup", 560f, 1260f, 0.11f, 0.26f);
-            _expand = CreateSweep("Expand", 300f, 610f, 0.12f, 0.20f);
-            _combatWin = CreateSweep("CombatWin", 350f, 920f, 0.16f, 0.31f);
-            _combatLose = CreateSweep("CombatLose", 220f, 85f, 0.18f, 0.33f);
-            _matchEnd = CreateSweep("MatchEnd", 390f, 760f, 0.24f, 0.30f);
+            _pickup = CreateSweep("Pickup", 720f, 980f, 0.050f, 0.15f);
+            _bonusPickup = CreateSweep("BonusPickup", 560f, 1320f, 0.10f, 0.24f);
+            _expand = CreateSweep("Expand", 300f, 610f, 0.11f, 0.17f);
+            _combatWin = CreateSweep("CombatWin", 350f, 920f, 0.15f, 0.27f);
+            _combatLose = CreateSweep("CombatLose", 220f, 85f, 0.17f, 0.30f);
+            _ko = CreateSweep("KO", 260f, 1080f, 0.21f, 0.34f);
+            _matchEnd = CreateSweep("MatchEnd", 390f, 760f, 0.24f, 0.28f);
 
             if (_territory != null)
                 _territory.PlayerExpanded += OnPlayerExpanded;
-            if (_rival != null)
-                _rival.CombatResolved += OnCombatResolved;
+            if (_battle != null)
+            {
+                _battle.CombatResolved += OnCombatResolved;
+                _battle.ParticipantDefeated += OnParticipantDefeated;
+            }
             if (_match != null)
                 _match.MatchEnded += OnMatchEnded;
         }
@@ -50,13 +55,24 @@ namespace Swarm
 
         private void OnPlayerExpanded(float percent, int cells, int enemyCells)
         {
-            if (cells >= 5 || enemyCells > 0)
+            if (enemyCells >= 5)
                 Play(_expand);
         }
 
-        private void OnCombatResolved(bool playerAdvantage, int playerCount, int rivalCount)
+        private void OnCombatResolved(int winner, int loser, bool decisive)
         {
-            Play(playerAdvantage ? _combatWin : _combatLose);
+            if (winner == BattlePalette.PlayerOwner)
+                Play(decisive ? _ko : _combatWin);
+            else if (loser == BattlePalette.PlayerOwner)
+                Play(_combatLose);
+        }
+
+        private void OnParticipantDefeated(int winner, int loser)
+        {
+            if (winner == BattlePalette.PlayerOwner)
+                Play(_ko);
+            else if (loser == BattlePalette.PlayerOwner)
+                Play(_combatLose);
         }
 
         private void OnMatchEnded()
@@ -96,8 +112,11 @@ namespace Swarm
         {
             if (_territory != null)
                 _territory.PlayerExpanded -= OnPlayerExpanded;
-            if (_rival != null)
-                _rival.CombatResolved -= OnCombatResolved;
+            if (_battle != null)
+            {
+                _battle.CombatResolved -= OnCombatResolved;
+                _battle.ParticipantDefeated -= OnParticipantDefeated;
+            }
             if (_match != null)
                 _match.MatchEnded -= OnMatchEnded;
         }
