@@ -18,7 +18,7 @@ The entire arena must be visible at once. The player should see every colored ba
 
 The intended mental model is:
 
-> Todos salen de su base. Juntá bichitos, hacé crecer tu ejército, comete a los más chicos y escapá de los más grandes. Tu base y tu color te ayudan a defenderte.
+> Todos salen de su base. Juntá bichitos, hacé crecer tu ejército, comete a los más chicos y escapá de los más grandes. Tu base y tu color te ayudan a defenderte. Al final gana el SWARM más grande.
 
 One thumb only. No attack button. No secondary gesture. No camera hunting. No special AI obsession with the human player.
 
@@ -46,8 +46,8 @@ One thumb only. No attack button. No secondary gesture. No camera hunting. No sp
 20. Fighting in your own color gives a defense bonus; fighting inside your base gives a stronger defense bonus.
 21. Defeated armies respawn at their own base with SWARM 5 and short protection.
 22. The final 15 seconds activate FINAL RUSH: bots become more aggressive and newly relocated food is biased toward the center.
-23. HUD labels every bot with color/name/count and shows a live Top 4.
-24. Match lasts 60 seconds from the first movement and ends with rank, KOs, deaths, map and final swarm.
+23. HUD labels every bot with color/name/count and shows a live Top 4 ordered by current SWARM size.
+24. Match lasts 60 seconds from the first movement. The winner/rank is determined by current SWARM size; KO and territory are only tiny tie-breakers. Result also shows KOs, deaths, map and final swarm.
 
 ## Integration task
 
@@ -106,11 +106,12 @@ Do not redesign gameplay unless a concrete runtime defect makes the intended beh
 - Bot KO respawns at that bot's own base with SWARM 5.
 - Respawn protection prevents instant spawn camping.
 
-### Territory / scoring
+### Territory / ranking
 - All 8 territory colors can appear.
 - Human and bots paint while moving.
 - Invading enemy influence can consume swarm units.
-- Live Top 4 changes as counts/territory/KOs change.
+- Live Top 4 is ordered by current SWARM size.
+- The final winner is the participant with the largest current SWARM (with KO/territory used only as tie-breakers).
 
 ### Final rush / result
 - At 15 seconds remaining FINAL RUSH activates.
