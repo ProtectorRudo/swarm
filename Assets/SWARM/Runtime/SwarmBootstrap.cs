@@ -88,6 +88,7 @@ namespace Swarm
             pickupsObject.transform.SetParent(root.transform, false);
             var pickups = pickupsObject.AddComponent<PickupSystem>();
             pickups.Initialize(player.transform, swarm, rival, avatarPresenter, cameraRig, hud, feedback, ArenaHalfExtents);
+            match.BindPickups(pickups);
 
             var telemetryObject = new GameObject("FirstTestTelemetry");
             telemetryObject.transform.SetParent(root.transform, false);
