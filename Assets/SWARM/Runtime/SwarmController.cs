@@ -38,15 +38,21 @@ namespace Swarm
         public void AddUnits(int amount)
         {
             if (amount <= 0) return;
-            Count += amount;
-            EnsureVisualCount(VisibleCount);
-            CountChanged?.Invoke(Count);
+            SetCount(Count + amount);
         }
 
         public void RemoveUnits(int amount)
         {
             if (amount <= 0 || Count <= 0) return;
-            Count = Mathf.Max(0, Count - amount);
+            SetCount(Mathf.Max(0, Count - amount));
+        }
+
+        public void SetCount(int count)
+        {
+            int next = Mathf.Max(0, count);
+            if (next == Count) return;
+            Count = next;
+            EnsureVisualCount(VisibleCount);
             CountChanged?.Invoke(Count);
         }
 
@@ -92,6 +98,8 @@ namespace Swarm
             Vector2 right = new Vector2(forward.y, -forward.x);
 
             int active = VisibleCount;
+            int columns = active >= 30 ? 6 : active >= 12 ? 5 : 4;
+
             for (int i = 0; i < _followers.Count; i++)
             {
                 var follower = _followers[i];
@@ -100,21 +108,26 @@ namespace Swarm
                     follower.Transform.gameObject.SetActive(shouldBeVisible);
                 if (!shouldBeVisible) continue;
 
-                follower.Spawn = Mathf.MoveTowards(follower.Spawn, 1f, Time.deltaTime * 6f);
+                follower.Spawn = Mathf.MoveTowards(follower.Spawn, 1f, Time.deltaTime * 7f);
 
-                int delaySteps = 3 + i / 4;
+                int row = i / columns;
+                int column = i % columns;
+                int delaySteps = 3 + row * 3;
                 int historyIndex = _historyHead - delaySteps;
                 while (historyIndex < 0) historyIndex += HistoryLength;
                 historyIndex %= HistoryLength;
 
-                float lane = ((i % 4) - 1.5f) * 0.34f;
-                float wobble = Mathf.Sin(Time.time * 3.7f + i * 1.91f) * 0.10f;
+                float laneCenter = (columns - 1) * 0.5f;
+                float lane = (column - laneCenter) * 0.38f;
+                float spread = Mathf.Min(0.28f, row * 0.018f);
+                lane *= 1f + spread;
+                float wobble = Mathf.Sin(Time.time * 3.7f + i * 1.91f) * 0.07f;
                 Vector3 target = _history[historyIndex] + (Vector3)(right * (lane + wobble));
 
                 float follow = 1f - Mathf.Exp(-14f * Time.deltaTime);
                 follower.Transform.position = Vector3.Lerp(follower.Transform.position, target, follow);
 
-                float sizeNoise = 0.72f + (i % 5) * 0.045f;
+                float sizeNoise = 0.66f + (i % 5) * 0.035f;
                 float targetScale = sizeNoise * follower.Spawn;
                 follower.Transform.localScale = Vector3.one * targetScale;
             }
