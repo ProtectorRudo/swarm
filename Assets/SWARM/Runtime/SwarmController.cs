@@ -9,6 +9,7 @@ namespace Swarm
         private sealed class FollowerProxy
         {
             public Transform Transform;
+            public SpriteRenderer Renderer;
             public float Spawn;
         }
 
@@ -23,10 +24,11 @@ namespace Swarm
         private PlayerMotor _motor;
         private int _historyHead;
         private float _historyTimer;
+        private Color _visualColor = new Color(1f, 0.66f, 0.18f, 0.93f);
+        private Vector2 _facingHint = Vector2.up;
 
         public int Count { get; private set; }
         public int VisibleCount => Mathf.Min(Count, MaxVisibleFollowers);
-        public Vector3 AnchorPosition => _anchor != null ? _anchor.position : Vector3.zero;
         public event Action<int> CountChanged;
 
         public void Initialize(Transform anchor, PlayerMotor motor)
@@ -34,6 +36,23 @@ namespace Swarm
             _anchor = anchor;
             _motor = motor;
             SnapHistoryToAnchor();
+        }
+
+        public void SetVisualColor(Color color)
+        {
+            color.a = Mathf.Clamp01(color.a <= 0f ? 0.93f : color.a);
+            _visualColor = color;
+            for (int i = 0; i < _followers.Count; i++)
+            {
+                if (_followers[i].Renderer != null)
+                    _followers[i].Renderer.color = FollowerColor(i);
+            }
+        }
+
+        public void SetFacingHint(Vector2 facing)
+        {
+            if (facing.sqrMagnitude > 0.001f)
+                _facingHint = facing.normalized;
         }
 
         public void AddUnits(int amount)
@@ -80,12 +99,20 @@ namespace Swarm
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = RuntimeArt.Circle;
                 RuntimeArt.Configure(renderer);
-                float hueShift = (index % 7) * 0.012f;
-                renderer.color = new Color(1f, 0.62f + hueShift, 0.16f, 0.93f);
+                renderer.color = FollowerColor(index);
                 renderer.sortingOrder = 10 + index % 3;
 
-                _followers.Add(new FollowerProxy { Transform = go.transform, Spawn = 0f });
+                _followers.Add(new FollowerProxy { Transform = go.transform, Renderer = renderer, Spawn = 0f });
             }
+        }
+
+        private Color FollowerColor(int index)
+        {
+            float variation = ((index % 5) - 2) * 0.025f;
+            Color.RGBToHSV(_visualColor, out float h, out float s, out float v);
+            Color result = Color.HSVToRGB(h, Mathf.Clamp01(s + variation * 0.35f), Mathf.Clamp01(v + variation));
+            result.a = _visualColor.a;
+            return result;
         }
 
         private void Update()
@@ -93,13 +120,20 @@ namespace Swarm
             if (_anchor == null) return;
 
             RecordHistory();
-            Vector2 forward = _motor != null && _motor.Velocity.sqrMagnitude > 0.01f
-                ? _motor.Velocity.normalized
-                : Vector2.up;
+            Vector2 forward;
+            if (_motor != null && _motor.Velocity.sqrMagnitude > 0.01f)
+            {
+                forward = _motor.Velocity.normalized;
+                _facingHint = forward;
+            }
+            else
+            {
+                forward = _facingHint.sqrMagnitude > 0.01f ? _facingHint.normalized : Vector2.up;
+            }
             Vector2 right = new Vector2(forward.y, -forward.x);
 
             int active = VisibleCount;
-            int columns = active >= 30 ? 6 : active >= 12 ? 5 : 4;
+            int columns = active >= 45 ? 7 : active >= 26 ? 6 : active >= 12 ? 5 : 4;
 
             for (int i = 0; i < _followers.Count; i++)
             {
@@ -119,16 +153,16 @@ namespace Swarm
                 historyIndex %= HistoryLength;
 
                 float laneCenter = (columns - 1) * 0.5f;
-                float lane = (column - laneCenter) * 0.38f;
-                float spread = Mathf.Min(0.28f, row * 0.018f);
+                float lane = (column - laneCenter) * 0.30f;
+                float spread = Mathf.Min(0.24f, row * 0.015f);
                 lane *= 1f + spread;
-                float wobble = Mathf.Sin(Time.time * 3.7f + i * 1.91f) * 0.07f;
+                float wobble = Mathf.Sin(Time.time * 3.7f + i * 1.91f) * 0.055f;
                 Vector3 target = _history[historyIndex] + (Vector3)(right * (lane + wobble));
 
                 float follow = 1f - Mathf.Exp(-14f * Time.deltaTime);
                 follower.Transform.position = Vector3.Lerp(follower.Transform.position, target, follow);
 
-                float sizeNoise = 0.66f + (i % 5) * 0.035f;
+                float sizeNoise = 0.50f + (i % 5) * 0.028f;
                 float targetScale = sizeNoise * follower.Spawn;
                 follower.Transform.localScale = Vector3.one * targetScale;
             }
