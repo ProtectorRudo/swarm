@@ -4,7 +4,7 @@ namespace Swarm
 {
     /// <summary>
     /// One autonomous army in the 0.4 free-for-all. Bots have no preference for the human player:
-    /// they collect, flee stronger armies, hunt weaker armies and contest the center like everyone else.
+    /// they collect, flee stronger armies, hunt weaker armies, shoot nearby armies and contest the center.
     /// </summary>
     public sealed class RivalBot : MonoBehaviour
     {
@@ -23,6 +23,7 @@ namespace Swarm
         private float _fleeTimer;
         private float _huntTimer;
         private float _respawnCalmTimer;
+        private float _underFireTimer;
         private float _phase;
         private float _baseSpeed;
         private int _huntOwner;
@@ -80,6 +81,7 @@ namespace Swarm
             _respawnCalmTimer = Mathf.Max(_respawnCalmTimer, calmSeconds);
             _fleeTimer = 0f;
             _huntTimer = 0f;
+            _underFireTimer = 0f;
             _huntOwner = 0;
             _moveTarget = Vector3.Lerp(_home, Vector3.zero, 0.28f);
         }
@@ -99,6 +101,43 @@ namespace Swarm
             Vector3 away = transform.position - otherPosition;
             if (away.sqrMagnitude < 0.01f) away = _home - transform.position;
             _moveTarget = ClampTarget(transform.position + away.normalized * 4.5f);
+        }
+
+        public void NotifyUnderFire(Vector3 shooterPosition)
+        {
+            _underFireTimer = 0.85f;
+            _decisionTimer = 0f;
+
+            if (Count <= 8)
+            {
+                _fleeTimer = Mathf.Max(_fleeTimer, 0.95f);
+                Vector3 away = transform.position - shooterPosition;
+                Vector3 homeDirection = (_home - transform.position).sqrMagnitude > 0.01f
+                    ? (_home - transform.position).normalized
+                    : Vector3.zero;
+                Vector3 escape = away.sqrMagnitude > 0.01f
+                    ? (away.normalized * 0.45f + homeDirection * 0.55f).normalized
+                    : homeDirection;
+                _moveTarget = ClampTarget(transform.position + escape * 4.4f);
+            }
+        }
+
+        /// <summary>
+        /// Shooting target query is symmetric: nearest valid army in range, regardless of whether it is human or bot.
+        /// </summary>
+        public bool TryGetFireDirection(out Vector2 direction)
+        {
+            direction = _moveDirection.sqrMagnitude > 0.01f ? _moveDirection.normalized : Vector2.down;
+            if (_battle == null || !_battle.CanFight || Count <= 0 || _respawnCalmTimer > 0f) return false;
+
+            float range = _battle.IsFinalRush ? 9.2f : 7.2f;
+            if (!_battle.TryFindNearestTarget(OwnerId, transform.position, range, out Vector3 target, out _))
+                return false;
+
+            Vector2 delta = target - transform.position;
+            if (delta.sqrMagnitude <= 0.02f) return false;
+            direction = delta.normalized;
+            return true;
         }
 
         private void BuildVisual()
@@ -161,6 +200,7 @@ namespace Swarm
             _respawnCalmTimer = Mathf.Max(0f, _respawnCalmTimer - Time.deltaTime);
             _fleeTimer = Mathf.Max(0f, _fleeTimer - Time.deltaTime);
             _huntTimer = Mathf.Max(0f, _huntTimer - Time.deltaTime);
+            _underFireTimer = Mathf.Max(0f, _underFireTimer - Time.deltaTime);
             _decisionTimer -= Time.deltaTime;
 
             if (_decisionTimer <= 0f)
@@ -177,6 +217,12 @@ namespace Swarm
             if (_respawnCalmTimer > 0f)
             {
                 _moveTarget = Vector3.Lerp(_home, Vector3.zero, 0.24f);
+                return;
+            }
+
+            if (_underFireTimer > 0f && Count <= 8)
+            {
+                _moveTarget = _home;
                 return;
             }
 
