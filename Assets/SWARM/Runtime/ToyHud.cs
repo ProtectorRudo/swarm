@@ -208,7 +208,7 @@ namespace Swarm
                 if (_rival.Count >= count + 3)
                 {
                     bool defending = _territory != null &&
-                        _territory.GetOwnerAtWorldPosition(_swarm.transform.parent != null ? _swarm.transform.parent.position : Vector3.zero) == TerritorySystem.PlayerOwned;
+                        _territory.GetOwnerAtWorldPosition(_swarm != null ? _swarm.AnchorPosition : Vector3.zero) == TerritorySystem.PlayerOwned;
                     return defending
                         ? "EL ROJO ES MÁS GRANDE • EN TU COLOR TENÉS DEFENSA"
                         : "EL ROJO ES MÁS GRANDE • CRECÉ O VOLVÉ A TU COLOR";
