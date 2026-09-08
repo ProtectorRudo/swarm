@@ -6,19 +6,19 @@ namespace Swarm
 {
     /// <summary>
     /// Authoritative free-for-all coordinator for SWARM 0.4.
-    /// Eight armies share one visible arena; combat has no attack button and no player-specific targeting rules.
+    /// Eight armies share one visible arena. Movement/territory/scoring stay here; ranged fire is simulated by
+    /// ShootingSystem and reports impacts back through ApplyProjectileHit.
     /// </summary>
     public sealed class BattleArenaDirector : MonoBehaviour
     {
-        private const float CombatRadius = 0.86f;
-        private const float CombatInterval = 0.52f;
         private const float StartPeaceSeconds = 2.25f;
         private const float RespawnProtectionSeconds = 2.4f;
         private const int RespawnSwarm = 5;
+        private const int KoReward = 3;
 
         private readonly List<RivalBot> _bots = new List<RivalBot>(BattlePalette.ParticipantCount - 1);
-        private readonly float[,] _nextCombatTime = new float[BattlePalette.ParticipantCount + 1, BattlePalette.ParticipantCount + 1];
         private readonly float[] _invulnerableUntil = new float[BattlePalette.ParticipantCount + 1];
+        private readonly float[] _damageAccumulator = new float[BattlePalette.ParticipantCount + 1];
         private readonly int[] _kills = new int[BattlePalette.ParticipantCount + 1];
         private readonly int[] _deaths = new int[BattlePalette.ParticipantCount + 1];
 
@@ -33,14 +33,18 @@ namespace Swarm
 
         public bool IsRunning { get; private set; }
         public bool IsFinalRush { get; private set; }
+        public bool CanFight => IsRunning && Time.time >= _startPeaceUntil;
         public IReadOnlyList<RivalBot> Bots => _bots;
         public Transform PlayerTransform => _player;
         public SwarmController PlayerSwarm => _playerSwarm;
         public Vector3 PlayerBase => _playerBase;
 
+        // Kept for compatibility with the 0.4 presentation hooks. decisive=true means a projectile caused a KO.
         public event Action<int, int, bool> CombatResolved;
         public event Action<int, int> ParticipantDefeated;
         public event Action<int, int, int> TerritoryConverted;
+        public event Action<int> ShotFired;
+        public event Action<int, int, int, bool> ShotHit;
 
         public void Initialize(
             Transform player,
@@ -106,8 +110,7 @@ namespace Swarm
         }
 
         /// <summary>
-        /// Ranking is deliberately almost pure current army size so the win condition is instantly legible.
-        /// KOs and territory only break exact ties; they already matter indirectly through absorption and defense.
+        /// Ranking stays intentionally legible: largest current SWARM wins. KOs and territory only break exact ties.
         /// </summary>
         public float GetScore(int ownerId)
         {
@@ -196,6 +199,79 @@ namespace Swarm
             return preyOwner != 0;
         }
 
+        /// <summary>
+        /// Symmetric ranged target query used by every bot. No owner receives special human-target weighting.
+        /// </summary>
+        public bool TryFindNearestTarget(int selfOwner, Vector3 selfPosition, float radius, out Vector3 targetPosition, out int targetOwner)
+        {
+            float bestDistanceSq = radius * radius;
+            targetOwner = 0;
+            targetPosition = Vector3.zero;
+
+            for (int owner = 1; owner <= BattlePalette.ParticipantCount; owner++)
+            {
+                if (owner == selfOwner || IsInvulnerable(owner) || GetCount(owner) <= 0) continue;
+                Vector3 position = GetPosition(owner);
+                float distanceSq = (position - selfPosition).sqrMagnitude;
+                if (distanceSq >= bestDistanceSq) continue;
+
+                bestDistanceSq = distanceSq;
+                targetOwner = owner;
+                targetPosition = position;
+            }
+
+            return targetOwner != 0;
+        }
+
+        public void NotifyShotFired(int ownerId)
+        {
+            if (!CanFight) return;
+            ShotFired?.Invoke(ownerId);
+        }
+
+        /// <summary>
+        /// One projectile contributes one unit of pressure. Own territory/base reduce that pressure through a
+        /// deterministic accumulator, so defense is real without adding a separate health bar.
+        /// </summary>
+        public bool ApplyProjectileHit(int shooterOwner, int targetOwner)
+        {
+            if (!CanFight || shooterOwner == targetOwner) return false;
+            if (targetOwner < 1 || targetOwner > BattlePalette.ParticipantCount) return false;
+            if (shooterOwner < 1 || shooterOwner > BattlePalette.ParticipantCount) return false;
+            if (IsInvulnerable(targetOwner) || GetCount(targetOwner) <= 0) return false;
+
+            Vector3 targetPosition = GetPosition(targetOwner);
+            float defense = Mathf.Max(1f, GetDefenseMultiplier(targetOwner, targetPosition));
+            _damageAccumulator[targetOwner] += 1f / defense;
+
+            int damage = Mathf.FloorToInt(_damageAccumulator[targetOwner]);
+            if (damage <= 0)
+            {
+                ShotHit?.Invoke(shooterOwner, targetOwner, GetCount(targetOwner), true);
+                return false;
+            }
+
+            _damageAccumulator[targetOwner] -= damage;
+            damage = Mathf.Min(damage, Mathf.Max(1, GetCount(targetOwner)));
+            RemoveUnits(targetOwner, damage);
+
+            int remaining = GetCount(targetOwner);
+            ShotHit?.Invoke(shooterOwner, targetOwner, remaining, false);
+            CombatResolved?.Invoke(shooterOwner, targetOwner, remaining <= 0);
+
+            RivalBot targetBot = FindBot(targetOwner);
+            if (targetBot != null)
+                targetBot.NotifyUnderFire(GetPosition(shooterOwner));
+
+            if (remaining <= 0)
+            {
+                AddUnits(shooterOwner, KoReward);
+                DefeatParticipant(targetOwner, shooterOwner);
+            }
+
+            return true;
+        }
+
         private void Update()
         {
             if (!IsRunning) return;
@@ -205,17 +281,6 @@ namespace Swarm
             {
                 _paintTimer = 0.11f;
                 PaintAllParticipants();
-            }
-
-            if (Time.time < _startPeaceUntil) return;
-
-            for (int i = 0; i < _bots.Count; i++)
-                TryResolvePair(BattlePalette.PlayerOwner, _bots[i].OwnerId);
-
-            for (int i = 0; i < _bots.Count; i++)
-            {
-                for (int j = i + 1; j < _bots.Count; j++)
-                    TryResolvePair(_bots[i].OwnerId, _bots[j].OwnerId);
             }
         }
 
@@ -248,64 +313,12 @@ namespace Swarm
                 TerritoryConverted?.Invoke(ownerId, changed, enemyCells);
         }
 
-        private void TryResolvePair(int ownerA, int ownerB)
-        {
-            if (IsInvulnerable(ownerA) || IsInvulnerable(ownerB)) return;
-            if (Time.time < _nextCombatTime[ownerA, ownerB]) return;
-
-            Vector3 positionA = GetPosition(ownerA);
-            Vector3 positionB = GetPosition(ownerB);
-            if ((positionA - positionB).sqrMagnitude > CombatRadius * CombatRadius) return;
-
-            _nextCombatTime[ownerA, ownerB] = Time.time + CombatInterval;
-            _nextCombatTime[ownerB, ownerA] = Time.time + CombatInterval;
-
-            int countA = GetCount(ownerA);
-            int countB = GetCount(ownerB);
-            if (countA <= 0 || countB <= 0) return;
-
-            float strengthA = countA * GetDefenseMultiplier(ownerA, positionA);
-            float strengthB = countB * GetDefenseMultiplier(ownerB, positionB);
-
-            int winner = strengthA >= strengthB ? ownerA : ownerB;
-            int loser = winner == ownerA ? ownerB : ownerA;
-            float winnerStrength = Mathf.Max(strengthA, strengthB);
-            float loserStrength = Mathf.Min(strengthA, strengthB);
-            int loserBefore = GetCount(loser);
-            int winnerBefore = GetCount(winner);
-
-            bool decisive = winnerStrength >= loserStrength * 1.22f || loserBefore <= 4;
-            if (decisive)
-            {
-                int absorbed = Mathf.Clamp(Mathf.FloorToInt(loserBefore * 0.34f), 2, 12);
-                AddUnits(winner, absorbed);
-                CombatResolved?.Invoke(winner, loser, true);
-                DefeatParticipant(loser, winner);
-                return;
-            }
-
-            int loserDamage = Mathf.Clamp(2 + Mathf.FloorToInt(winnerBefore * 0.045f), 2, 5);
-            int winnerDamage = Mathf.Clamp(1 + Mathf.FloorToInt(loserBefore * 0.018f), 1, 2);
-            RemoveUnits(loser, loserDamage);
-            RemoveUnits(winner, winnerDamage);
-            CombatResolved?.Invoke(winner, loser, false);
-
-            RivalBot loserBot = FindBot(loser);
-            if (loserBot != null) loserBot.NotifyCombatOutcome(false, GetPosition(winner));
-            RivalBot winnerBot = FindBot(winner);
-            if (winnerBot != null) winnerBot.NotifyCombatOutcome(true, GetPosition(loser));
-
-            if (GetCount(loser) <= 2)
-                DefeatParticipant(loser, winner);
-            else if (GetCount(winner) <= 2)
-                DefeatParticipant(winner, loser);
-        }
-
         private void DefeatParticipant(int loser, int winner)
         {
             _kills[winner]++;
             _deaths[loser]++;
             _invulnerableUntil[loser] = Time.time + RespawnProtectionSeconds;
+            _damageAccumulator[loser] = 0f;
 
             if (loser == BattlePalette.PlayerOwner)
             {
@@ -318,9 +331,6 @@ namespace Swarm
                 RivalBot bot = FindBot(loser);
                 if (bot != null) bot.Respawn(RespawnSwarm, RespawnProtectionSeconds);
             }
-
-            RivalBot winnerBot = FindBot(winner);
-            if (winnerBot != null) winnerBot.NotifyCombatOutcome(true, BattlePalette.BasePosition(loser, _halfExtents));
 
             ParticipantDefeated?.Invoke(winner, loser);
         }
