@@ -26,6 +26,7 @@ namespace Swarm
 
         public int Count { get; private set; }
         public int VisibleCount => Mathf.Min(Count, MaxVisibleFollowers);
+        public Vector3 AnchorPosition => _anchor != null ? _anchor.position : Vector3.zero;
         public event Action<int> CountChanged;
 
         public void Initialize(Transform anchor, PlayerMotor motor)
