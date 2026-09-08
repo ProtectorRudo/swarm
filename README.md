@@ -1,6 +1,6 @@
 # SWARM
 
-One-hand portrait mobile arena game prototype built with Unity.
+One-hand portrait mobile battle-arena prototype built with Unity.
 
 ## Product laws
 
@@ -11,27 +11,29 @@ One-hand portrait mobile arena game prototype built with Unity.
 
 ## Current milestone
 
-`SWARM 0.2 — First Test Slice`
+`SWARM 0.4 — Battle Arena`
 
 Core loop under test:
 
-`move -> collect -> grow -> leave territory -> expose trail -> close capture -> avoid rival cut -> score -> replay`
+`see the whole arena -> collect -> grow -> choose prey/threat -> fight automatically -> defend at home -> dominate -> survive the final rush`
 
-Working branch: `feature/swarm-0.2-first-test`
+Working branch: `feature/swarm-0.4-battle-arena`
 
 Target editor: Unity `6000.3.22f1` (Unity 6.3 LTS).
 
 Target runtime: Android, portrait, ARM64, IL2CPP, Linear color, URP 2D Renderer.
 
-## First-test scope
+## Battle Arena scope
 
-The build includes direct one-pointer movement, pickups and swarm growth, logical/visual follower separation, grid territory capture, one lightweight trail-hunting rival, a 60-second match loop, one-tap replay, and local first-test telemetry.
+The complete arena is always visible. Eight armies start from eight colored bases around the perimeter: one human and seven autonomous bots. All armies compete for the same persistent food field, grow visible follower swarms, paint secondary territory, attack smaller armies automatically on contact, flee stronger armies and receive a defensive multiplier in their own territory/base.
 
-It intentionally does **not** yet include final character art, mutations, multiple rivals, real progression, multiplayer, 3D avatars, dances, celebrations, shops, or LiveOps.
+Bots fight and eliminate each other as well as the human. There is no player-specific hunter. The final 15 seconds bias the conflict toward the resource-rich center to create a natural battle climax.
+
+The build intentionally keeps placeholder procedural visuals, generated audio and local-only telemetry. Final characters, mutations, progression, multiplayer, shops, LiveOps, celebrations and production art remain out of scope until the battle loop passes a real phone test.
 
 ## Handoff and test docs
 
-- `docs/CODEX_HANDOFF_0_2.md` — Unity/Codex integration and Android build procedure.
-- `docs/TEST_PLAN_0_2.md` — phone-test acceptance criteria and metrics.
+- `docs/CODEX_HANDOFF_0_4.md` — Unity/Codex integration and Android build procedure.
+- `docs/TEST_PLAN_0_4.md` — Battle Arena phone-test acceptance criteria and metrics.
 - `docs/ARCHITECTURE.md` — architectural rules.
 - `docs/PRODUCT_RULES.md` — product constraints.
