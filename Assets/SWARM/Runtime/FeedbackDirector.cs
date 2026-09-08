@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Lightweight generated audio for the Battle Arena prototype.
+    /// Lightweight generated audio for the Battle Arena prototype. Production sound is intentionally deferred.
     /// </summary>
     public sealed class FeedbackDirector : MonoBehaviour
     {
@@ -14,8 +14,10 @@ namespace Swarm
         private AudioClip _pickup;
         private AudioClip _bonusPickup;
         private AudioClip _expand;
-        private AudioClip _combatWin;
-        private AudioClip _combatLose;
+        private AudioClip _shot;
+        private AudioClip _hit;
+        private AudioClip _hurt;
+        private AudioClip _shield;
         private AudioClip _ko;
         private AudioClip _matchEnd;
 
@@ -32,8 +34,10 @@ namespace Swarm
             _pickup = CreateSweep("Pickup", 720f, 980f, 0.050f, 0.15f);
             _bonusPickup = CreateSweep("BonusPickup", 560f, 1320f, 0.10f, 0.24f);
             _expand = CreateSweep("Expand", 300f, 610f, 0.11f, 0.17f);
-            _combatWin = CreateSweep("CombatWin", 350f, 920f, 0.15f, 0.27f);
-            _combatLose = CreateSweep("CombatLose", 220f, 85f, 0.17f, 0.30f);
+            _shot = CreateSweep("Shot", 980f, 620f, 0.045f, 0.10f);
+            _hit = CreateSweep("Hit", 520f, 820f, 0.065f, 0.15f);
+            _hurt = CreateSweep("Hurt", 260f, 120f, 0.085f, 0.18f);
+            _shield = CreateSweep("Shield", 860f, 1140f, 0.055f, 0.10f);
             _ko = CreateSweep("KO", 260f, 1080f, 0.21f, 0.34f);
             _matchEnd = CreateSweep("MatchEnd", 390f, 760f, 0.24f, 0.28f);
 
@@ -41,7 +45,8 @@ namespace Swarm
                 _territory.PlayerExpanded += OnPlayerExpanded;
             if (_battle != null)
             {
-                _battle.CombatResolved += OnCombatResolved;
+                _battle.ShotFired += OnShotFired;
+                _battle.ShotHit += OnShotHit;
                 _battle.ParticipantDefeated += OnParticipantDefeated;
             }
             if (_match != null)
@@ -50,40 +55,48 @@ namespace Swarm
 
         public void NotifyPickup(bool bonus)
         {
-            Play(bonus ? _bonusPickup : _pickup);
+            Play(bonus ? _bonusPickup : _pickup, 1f);
         }
 
         private void OnPlayerExpanded(float percent, int cells, int enemyCells)
         {
             if (enemyCells >= 5)
-                Play(_expand);
+                Play(_expand, 0.72f);
         }
 
-        private void OnCombatResolved(int winner, int loser, bool decisive)
+        private void OnShotFired(int owner)
         {
-            if (winner == BattlePalette.PlayerOwner)
-                Play(decisive ? _ko : _combatWin);
-            else if (loser == BattlePalette.PlayerOwner)
-                Play(_combatLose);
+            if (owner == BattlePalette.PlayerOwner)
+                Play(_shot, 0.62f);
+        }
+
+        private void OnShotHit(int shooter, int target, int remaining, bool defended)
+        {
+            if (shooter != BattlePalette.PlayerOwner && target != BattlePalette.PlayerOwner) return;
+
+            if (defended)
+                Play(_shield, 0.58f);
+            else if (shooter == BattlePalette.PlayerOwner)
+                Play(_hit, 0.72f);
+            else if (target == BattlePalette.PlayerOwner)
+                Play(_hurt, 0.78f);
         }
 
         private void OnParticipantDefeated(int winner, int loser)
         {
-            if (winner == BattlePalette.PlayerOwner)
-                Play(_ko);
-            else if (loser == BattlePalette.PlayerOwner)
-                Play(_combatLose);
+            if (winner == BattlePalette.PlayerOwner || loser == BattlePalette.PlayerOwner)
+                Play(_ko, 1f);
         }
 
         private void OnMatchEnded()
         {
-            Play(_matchEnd);
+            Play(_matchEnd, 1f);
         }
 
-        private void Play(AudioClip clip)
+        private void Play(AudioClip clip, float volume)
         {
             if (_source == null || clip == null) return;
-            _source.PlayOneShot(clip, 1f);
+            _source.PlayOneShot(clip, Mathf.Clamp01(volume));
         }
 
         private static AudioClip CreateSweep(string name, float startHz, float endHz, float duration, float amplitude)
@@ -114,7 +127,8 @@ namespace Swarm
                 _territory.PlayerExpanded -= OnPlayerExpanded;
             if (_battle != null)
             {
-                _battle.CombatResolved -= OnCombatResolved;
+                _battle.ShotFired -= OnShotFired;
+                _battle.ShotHit -= OnShotHit;
                 _battle.ParticipantDefeated -= OnParticipantDefeated;
             }
             if (_match != null)
