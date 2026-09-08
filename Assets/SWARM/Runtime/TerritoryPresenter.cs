@@ -3,13 +3,11 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Visual-only projection of TerritorySystem. The logical grid remains authoritative.
+    /// Visual-only projection of the eight-owner influence grid.
     /// </summary>
     public sealed class TerritoryPresenter : MonoBehaviour
     {
         private static readonly Color NeutralColor = new Color(0f, 0f, 0f, 0f);
-        private static readonly Color PlayerColor = new Color(1f, 0.64f, 0.16f, 0.34f);
-        private static readonly Color RivalColor = new Color(1f, 0.18f, 0.26f, 0.30f);
 
         private TerritorySystem _territory;
         private Texture2D _texture;
@@ -20,7 +18,7 @@ namespace Swarm
             _territory = territory;
             _texture = new Texture2D(TerritorySystem.GridWidth, TerritorySystem.GridHeight, TextureFormat.RGBA32, false)
             {
-                name = "SWARM_TerritoryGrid",
+                name = "SWARM_BattleTerritoryGrid",
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
@@ -39,7 +37,7 @@ namespace Swarm
                 new Rect(0, 0, TerritorySystem.GridWidth, TerritorySystem.GridHeight),
                 new Vector2(0.5f, 0.5f),
                 1f);
-            sprite.name = "SWARM_TerritorySprite";
+            sprite.name = "SWARM_BattleTerritorySprite";
 
             var renderer = gameObject.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
@@ -77,9 +75,12 @@ namespace Swarm
 
         private static Color ColorFor(byte state)
         {
-            if (state == TerritorySystem.PlayerOwned) return PlayerColor;
-            if (state == TerritorySystem.RivalOwned) return RivalColor;
-            return NeutralColor;
+            if (state < 1 || state > BattlePalette.ParticipantCount)
+                return NeutralColor;
+
+            Color color = BattlePalette.Color(state);
+            color.a = state == BattlePalette.PlayerOwner ? 0.31f : 0.25f;
+            return color;
         }
     }
 }
