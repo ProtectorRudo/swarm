@@ -23,6 +23,7 @@ Without prior explanation, the player should understand within 20 seconds that:
 4. A visibly larger-number army is dangerous to a smaller-number army.
 5. Contact is the attack; there is no attack button.
 6. Returning toward your color/base is a defensive option.
+7. The goal is to finish with the largest SWARM in the arena.
 
 Failure on any of these means the core presentation/onboarding needs revision before adding content.
 
@@ -33,6 +34,7 @@ For each match record:
 - Did the full map feel readable or too tiny/crowded?
 - Could you immediately locate your orange base/player?
 - Could you tell which armies were becoming strong without searching for them?
+- Did the live Top 4 make sense just by comparing SWARM counts?
 - Did bot-vs-bot battles happen visibly?
 - Did any bot feel unfairly obsessed with you?
 - Did you consciously choose at least once to hunt a smaller rival?
@@ -61,7 +63,7 @@ Capture screenshots showing:
 
 ### Clarity
 - Core mental model understood in <=20 seconds.
-- Preferred: player understands food/growth within 8 seconds and size-based danger within 15 seconds.
+- Preferred: player understands food/growth within 8 seconds, size-based danger within 15 seconds, and knows that the largest final SWARM wins without external explanation.
 
 ### Agency
 - Player can intentionally pursue at least one smaller target by match 2.
@@ -70,7 +72,7 @@ Capture screenshots showing:
 ### Emergence
 - At least one obvious bot-vs-bot KO in most matches.
 - No bot consistently follows the human for long stretches without a size/position reason.
-- Leader can change during a match.
+- Leader can change during a match because army sizes change.
 
 ### Excitement
 - At least one moment per match should create a clear reaction: chase, escape, KO, being cornered, stealing high-value center food, or watching two large armies collide.
@@ -93,6 +95,7 @@ Capture screenshots showing:
 - **Player gets dogpiled:** audit target scoring; bots must treat all participants symmetrically.
 - **Combat outcome unclear:** improve number/impact feedback before adding mechanics.
 - **Base defense invisible:** strengthen base visual/feedback or simplify the bonus rule.
+- **Ranking unclear:** keep ranking tied to SWARM size; do not add hidden scoring complexity.
 - **No replay urge:** the battle loop itself failed; do not mask it with metagame systems.
 
 ## Out of scope for this test
