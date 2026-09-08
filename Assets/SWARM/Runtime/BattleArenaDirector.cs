@@ -105,11 +105,16 @@ namespace Swarm
             return ownerId >= 1 && ownerId < _deaths.Length ? _deaths[ownerId] : 0;
         }
 
+        /// <summary>
+        /// Ranking is deliberately almost pure current army size so the win condition is instantly legible.
+        /// KOs and territory only break exact ties; they already matter indirectly through absorption and defense.
+        /// </summary>
         public float GetScore(int ownerId)
         {
             if (ownerId < 1 || ownerId > BattlePalette.ParticipantCount) return 0f;
-            float territoryScore = _territory != null ? _territory.GetOwnedPercent(ownerId) * 100f : 0f;
-            return territoryScore + GetCount(ownerId) * 0.72f + _kills[ownerId] * 10f - _deaths[ownerId] * 2f;
+            float tieBreak = _kills[ownerId] * 0.001f;
+            if (_territory != null) tieBreak += _territory.GetOwnedPercent(ownerId) * 0.0001f;
+            return GetCount(ownerId) + tieBreak;
         }
 
         public int GetLeaderOwner()
