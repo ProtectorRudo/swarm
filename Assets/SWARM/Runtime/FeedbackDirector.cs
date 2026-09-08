@@ -3,24 +3,26 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Lightweight presentation-only audio for the first phone test. Uses generated clips so the prototype has
-    /// reward/threat feedback without committing to production audio assets.
+    /// Lightweight presentation-only audio for the 0.3 phone test.
     /// </summary>
     public sealed class FeedbackDirector : MonoBehaviour
     {
         private AudioSource _source;
         private TerritorySystem _territory;
         private MatchDirector _match;
+        private RivalBot _rival;
         private AudioClip _pickup;
         private AudioClip _bonusPickup;
-        private AudioClip _capture;
-        private AudioClip _cut;
+        private AudioClip _expand;
+        private AudioClip _combatWin;
+        private AudioClip _combatLose;
         private AudioClip _matchEnd;
 
-        public void Initialize(TerritorySystem territory, MatchDirector match)
+        public void Initialize(TerritorySystem territory, MatchDirector match, RivalBot rival)
         {
             _territory = territory;
             _match = match;
+            _rival = rival;
 
             _source = gameObject.AddComponent<AudioSource>();
             _source.playOnAwake = false;
@@ -28,15 +30,15 @@ namespace Swarm
 
             _pickup = CreateSweep("Pickup", 720f, 980f, 0.055f, 0.18f);
             _bonusPickup = CreateSweep("BonusPickup", 560f, 1260f, 0.11f, 0.26f);
-            _capture = CreateSweep("Capture", 280f, 650f, 0.19f, 0.34f);
-            _cut = CreateSweep("TrailCut", 190f, 72f, 0.23f, 0.36f);
+            _expand = CreateSweep("Expand", 300f, 610f, 0.12f, 0.20f);
+            _combatWin = CreateSweep("CombatWin", 350f, 920f, 0.16f, 0.31f);
+            _combatLose = CreateSweep("CombatLose", 220f, 85f, 0.18f, 0.33f);
             _matchEnd = CreateSweep("MatchEnd", 390f, 760f, 0.24f, 0.30f);
 
             if (_territory != null)
-            {
-                _territory.CaptureCompleted += OnCapture;
-                _territory.TrailCut += OnTrailCut;
-            }
+                _territory.PlayerExpanded += OnPlayerExpanded;
+            if (_rival != null)
+                _rival.CombatResolved += OnCombatResolved;
             if (_match != null)
                 _match.MatchEnded += OnMatchEnded;
         }
@@ -46,14 +48,15 @@ namespace Swarm
             Play(bonus ? _bonusPickup : _pickup);
         }
 
-        private void OnCapture(float percent, int cells)
+        private void OnPlayerExpanded(float percent, int cells, int enemyCells)
         {
-            Play(_capture);
+            if (cells >= 5 || enemyCells > 0)
+                Play(_expand);
         }
 
-        private void OnTrailCut()
+        private void OnCombatResolved(bool playerAdvantage, int playerCount, int rivalCount)
         {
-            Play(_cut);
+            Play(playerAdvantage ? _combatWin : _combatLose);
         }
 
         private void OnMatchEnded()
@@ -92,10 +95,9 @@ namespace Swarm
         private void OnDestroy()
         {
             if (_territory != null)
-            {
-                _territory.CaptureCompleted -= OnCapture;
-                _territory.TrailCut -= OnTrailCut;
-            }
+                _territory.PlayerExpanded -= OnPlayerExpanded;
+            if (_rival != null)
+                _rival.CombatResolved -= OnCombatResolved;
             if (_match != null)
                 _match.MatchEnded -= OnMatchEnded;
         }
