@@ -10,7 +10,7 @@ namespace Swarm.Editor
 {
     public static class SwarmBuild
     {
-        private const string OutputPath = "Builds/Android/SWARM-0.3-core-rework.apk";
+        private const string OutputPath = "Builds/Android/SWARM-0.4-battle-arena.apk";
 
         [MenuItem("SWARM/Build Android APK")]
         public static void BuildAndroid()
@@ -50,7 +50,7 @@ namespace Swarm.Editor
 
             Debug.Log("SWARM_APK_READY=" + Path.GetFullPath(OutputPath));
             Debug.Log("SWARM_APK_SIZE_BYTES=" + report.summary.totalSize);
-            Debug.Log("SWARM_BUILD_VERSION=0.3-core-rework");
+            Debug.Log("SWARM_BUILD_VERSION=0.4-battle-arena");
         }
 
         private static void ValidateProject()
