@@ -2,6 +2,10 @@ using UnityEngine;
 
 namespace Swarm
 {
+    /// <summary>
+    /// Battle Arena HUD: all rivals are labeled in-world, while the top bar keeps the human focused on army size,
+    /// remaining time and current position in the free-for-all.
+    /// </summary>
     public sealed class ToyHud : MonoBehaviour
     {
         private OneHandInputSource _input;
@@ -9,24 +13,22 @@ namespace Swarm
         private TerritorySystem _territory;
         private MatchDirector _match;
         private FirstTestTelemetry _telemetry;
-        private RivalBot _rival;
+        private BattleArenaDirector _battle;
 
         private GUIStyle _titleStyle;
         private GUIStyle _instructionStyle;
         private GUIStyle _debugStyle;
         private GUIStyle _resultStyle;
         private GUIStyle _resultSubStyle;
-        private GUIStyle _rivalStyle;
+        private GUIStyle _worldLabelStyle;
+        private GUIStyle _rankStyle;
 
         private float _pickupPulse;
-        private float _expansionPulse;
-        private float _combatPulse;
+        private float _eventPulse;
         private float _smoothedDelta;
         private string _eventMessage = string.Empty;
         private Color _eventColor = Color.white;
         private bool _showResult;
-        private float _resultPercent;
-        private int _resultSwarm;
 
         public void Initialize(OneHandInputSource input, SwarmController swarm)
         {
@@ -40,19 +42,21 @@ namespace Swarm
             _territory = territory;
         }
 
-        public void BindRival(RivalBot rival)
+        public void BindBattle(BattleArenaDirector battle)
         {
-            if (_rival != null)
+            if (_battle != null)
             {
-                _rival.CombatResolved -= OnCombatResolved;
-                _rival.Defeated -= OnDefeated;
+                _battle.CombatResolved -= OnCombatResolved;
+                _battle.ParticipantDefeated -= OnParticipantDefeated;
+                _battle.TerritoryConverted -= OnTerritoryConverted;
             }
 
-            _rival = rival;
-            if (_rival != null)
+            _battle = battle;
+            if (_battle != null)
             {
-                _rival.CombatResolved += OnCombatResolved;
-                _rival.Defeated += OnDefeated;
+                _battle.CombatResolved += OnCombatResolved;
+                _battle.ParticipantDefeated += OnParticipantDefeated;
+                _battle.TerritoryConverted += OnTerritoryConverted;
             }
         }
 
@@ -61,77 +65,93 @@ namespace Swarm
             _telemetry = telemetry;
         }
 
-        public void NotifyPickup()
+        public void NotifyPickup(int value)
         {
             _pickupPulse = 1f;
+            if (value >= 5)
+            {
+                _eventPulse = 1f;
+                _eventMessage = "+5 • MEGA BICHO";
+                _eventColor = new Color(1f, 0.52f, 0.92f, 1f);
+            }
+            else if (value >= 3)
+            {
+                _eventPulse = 0.75f;
+                _eventMessage = "+3 • BICHO RARO";
+                _eventColor = new Color(0.38f, 0.95f, 1f, 1f);
+            }
         }
 
         public void NotifyExpansion(float percent, int cells, int enemyCells)
         {
-            _expansionPulse = 1f;
-            if (enemyCells > 0)
-            {
-                _eventMessage = "¡ROBASTE " + enemyCells + " CELDAS ROJAS!";
-                _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
-            }
-            else if (cells >= 5)
-            {
-                _eventMessage = "+" + cells + " MAPA  •  " + (percent * 100f).ToString("0.0") + "%";
-                _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
-            }
+            if (enemyCells < 5) return;
+            _eventPulse = 0.62f;
+            _eventMessage = "ROBASTE " + enemyCells + " CELDAS";
+            _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
         }
 
-        public void ShowResult(float percent, int swarmCount)
+        public void ShowResult()
         {
             _showResult = true;
-            _resultPercent = percent;
-            _resultSwarm = swarmCount;
-        }
-
-        private void OnCombatResolved(bool playerAdvantage, int playerCount, int rivalCount)
-        {
-            _combatPulse = 1f;
-            if (playerAdvantage)
-            {
-                _eventMessage = "¡LO ESTÁS COMIENDO!  " + playerCount + " vs " + rivalCount;
-                _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
-            }
-            else
-            {
-                _eventMessage = "¡ES MÁS FUERTE!  " + playerCount + " vs " + rivalCount;
-                _eventColor = new Color(1f, 0.30f, 0.34f, 1f);
-            }
-        }
-
-        private void OnDefeated(bool playerDefeated)
-        {
-            _combatPulse = 1.5f;
-            if (playerDefeated)
-            {
-                _eventMessage = "TE COMIÓ • VOLVÉS CON 5";
-                _eventColor = new Color(1f, 0.30f, 0.34f, 1f);
-            }
-            else
-            {
-                _eventMessage = "¡TE COMISTE AL ROJO!";
-                _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
-            }
         }
 
         private void OnDestroy()
         {
-            if (_rival != null)
+            if (_battle != null)
             {
-                _rival.CombatResolved -= OnCombatResolved;
-                _rival.Defeated -= OnDefeated;
+                _battle.CombatResolved -= OnCombatResolved;
+                _battle.ParticipantDefeated -= OnParticipantDefeated;
+                _battle.TerritoryConverted -= OnTerritoryConverted;
             }
+        }
+
+        private void OnCombatResolved(int winner, int loser, bool decisive)
+        {
+            if (winner != BattlePalette.PlayerOwner && loser != BattlePalette.PlayerOwner) return;
+
+            _eventPulse = decisive ? 1.35f : 0.82f;
+            if (winner == BattlePalette.PlayerOwner)
+            {
+                _eventMessage = decisive
+                    ? "¡TE COMISTE A " + BattlePalette.Name(loser) + "!"
+                    : "¡LO ESTÁS GANANDO!";
+                _eventColor = new Color(0.48f, 1f, 0.68f, 1f);
+            }
+            else
+            {
+                _eventMessage = decisive
+                    ? BattlePalette.Name(winner) + " TE COMIÓ"
+                    : "¡ES MÁS FUERTE!";
+                _eventColor = new Color(1f, 0.30f, 0.34f, 1f);
+            }
+        }
+
+        private void OnParticipantDefeated(int winner, int loser)
+        {
+            if (winner != BattlePalette.PlayerOwner && loser != BattlePalette.PlayerOwner) return;
+            _eventPulse = 1.55f;
+            if (winner == BattlePalette.PlayerOwner)
+            {
+                _eventMessage = "KO " + BattlePalette.Name(loser) + " • ABSORBISTE SU SWARM";
+                _eventColor = new Color(0.50f, 1f, 0.66f, 1f);
+            }
+            else
+            {
+                _eventMessage = "TE ELIMINÓ " + BattlePalette.Name(winner) + " • VOLVÉS CON 5";
+                _eventColor = new Color(1f, 0.27f, 0.32f, 1f);
+            }
+        }
+
+        private void OnTerritoryConverted(int owner, int changed, int enemyCells)
+        {
+            if (owner == BattlePalette.PlayerOwner)
+                NotifyExpansion(_territory != null ? _territory.PlayerOwnedPercent : 0f, changed, enemyCells);
         }
 
         private void Update()
         {
-            _pickupPulse = Mathf.MoveTowards(_pickupPulse, 0f, Time.deltaTime * 3.6f);
-            _expansionPulse = Mathf.MoveTowards(_expansionPulse, 0f, Time.deltaTime * 1.8f);
-            _combatPulse = Mathf.MoveTowards(_combatPulse, 0f, Time.deltaTime * 1.3f);
+            _pickupPulse = Mathf.MoveTowards(_pickupPulse, 0f, Time.deltaTime * 3.8f);
+            _eventPulse = Mathf.MoveTowards(_eventPulse, 0f, Time.deltaTime * 1.25f);
             _smoothedDelta += (Time.unscaledDeltaTime - _smoothedDelta) * 0.08f;
         }
 
@@ -143,108 +163,175 @@ namespace Swarm
             float width = Screen.width / scale;
             float height = Screen.height / scale;
 
-            int count = _swarm != null ? _swarm.Count : 0;
-            float ownedPercent = _territory != null ? _territory.PlayerOwnedPercent : 0f;
-            float titleScale = 1f + _pickupPulse * 0.10f;
-            _titleStyle.fontSize = Mathf.RoundToInt(46f * titleScale);
+            DrawTopBar(width);
+            DrawBotLabels(scale, width, height);
+            DrawRanking(width);
 
-            GUI.Label(new Rect(28f, 44f, width * 0.47f, 72f), "SWARM  " + count, _titleStyle);
-            GUI.Label(new Rect(width * 0.50f, 44f, width * 0.47f, 72f), "TU MAPA  " + (ownedPercent * 100f).ToString("0.0") + "%", _titleStyle);
-
-            if (_match != null)
-            {
-                int seconds = Mathf.CeilToInt(_match.TimeRemaining);
-                GUI.Label(new Rect(width * 0.5f - 100f, 115f, 200f, 48f), seconds.ToString("00") + "s", _debugStyle);
-            }
-
-            DrawRivalLabel(scale, width, height);
-
-            float eventPulse = Mathf.Max(_combatPulse, _expansionPulse);
-            if (eventPulse > 0.01f && !string.IsNullOrEmpty(_eventMessage))
+            if (_eventPulse > 0.01f && !string.IsNullOrEmpty(_eventMessage))
             {
                 Color old = _instructionStyle.normal.textColor;
-                _instructionStyle.normal.textColor = new Color(_eventColor.r, _eventColor.g, _eventColor.b, Mathf.Clamp01(eventPulse * 1.4f));
-                _instructionStyle.fontSize = 38 + Mathf.RoundToInt(eventPulse * 9f);
-                GUI.Label(new Rect(35f, height * 0.23f, width - 70f, 105f), _eventMessage, _instructionStyle);
+                _instructionStyle.normal.textColor = new Color(_eventColor.r, _eventColor.g, _eventColor.b, Mathf.Clamp01(_eventPulse * 1.4f));
+                _instructionStyle.fontSize = 36 + Mathf.RoundToInt(_eventPulse * 8f);
+                GUI.Label(new Rect(35f, height * 0.18f, width - 70f, 90f), _eventMessage, _instructionStyle);
                 _instructionStyle.normal.textColor = old;
-                _instructionStyle.fontSize = 34;
+                _instructionStyle.fontSize = 31;
             }
 
-            string instruction = GetInstruction(count);
-            GUI.Label(new Rect(45f, height - 220f, width - 90f, 110f), instruction, _instructionStyle);
+            if (!_showResult)
+                GUI.Label(new Rect(42f, height - 180f, width - 84f, 105f), GetInstruction(), _instructionStyle);
 
             float fps = _smoothedDelta > 0.0001f ? 1f / _smoothedDelta : 0f;
-            GUI.Label(new Rect(24f, 16f, 330f, 36f), "CORE REWORK 0.3   " + fps.ToString("0") + " FPS", _debugStyle);
+            GUI.Label(new Rect(18f, 10f, 310f, 34f), "BATTLE ARENA 0.4   " + fps.ToString("0") + " FPS", _debugStyle);
 
             if (_showResult)
                 DrawResult(width, height);
         }
 
-        private void DrawRivalLabel(float scale, float width, float height)
+        private void DrawTopBar(float width)
         {
-            if (_rival == null || Camera.main == null || _showResult) return;
-            Vector3 screen = Camera.main.WorldToScreenPoint(_rival.transform.position);
-            if (screen.z <= 0f) return;
+            int count = _swarm != null ? _swarm.Count : 0;
+            float owned = _territory != null ? _territory.PlayerOwnedPercent * 100f : 0f;
+            float titleScale = 1f + _pickupPulse * 0.08f;
+            _titleStyle.fontSize = Mathf.RoundToInt(42f * titleScale);
 
-            float x = screen.x / scale;
-            float y = height - screen.y / scale;
-            if (x < -80f || x > width + 80f || y < -80f || y > height + 80f) return;
+            GUI.Label(new Rect(22f, 42f, width * 0.42f, 64f), "SWARM  " + count, _titleStyle);
+            GUI.Label(new Rect(width * 0.60f, 42f, width * 0.38f, 64f), "MAPA  " + owned.ToString("0.0") + "%", _titleStyle);
 
-            GUI.Label(new Rect(x - 100f, y - 92f, 200f, 50f), "ROJO  " + _rival.Count, _rivalStyle);
+            if (_match != null)
+            {
+                int seconds = Mathf.CeilToInt(_match.TimeRemaining);
+                string timer = seconds.ToString("00") + "s";
+                if (_battle != null && _battle.IsFinalRush) timer = "⚔ " + timer + " ⚔";
+                GUI.Label(new Rect(width * 0.5f - 90f, 48f, 180f, 52f), timer, _rankStyle);
+            }
         }
 
-        private string GetInstruction(int count)
+        private void DrawBotLabels(float scale, float width, float height)
         {
-            if (_showResult) return string.Empty;
+            if (_battle == null || Camera.main == null || _showResult) return;
+            var bots = _battle.Bots;
+            for (int i = 0; i < bots.Count; i++)
+            {
+                RivalBot bot = bots[i];
+                if (bot == null) continue;
+                Vector3 screen = Camera.main.WorldToScreenPoint(bot.transform.position);
+                if (screen.z <= 0f) continue;
+
+                float x = screen.x / scale;
+                float y = height - screen.y / scale;
+                if (x < -90f || x > width + 90f || y < -90f || y > height + 90f) continue;
+
+                Color old = _worldLabelStyle.normal.textColor;
+                _worldLabelStyle.normal.textColor = BattlePalette.Color(bot.OwnerId);
+                GUI.Label(new Rect(x - 90f, y - 64f, 180f, 42f), BattlePalette.Name(bot.OwnerId) + "  " + bot.Count, _worldLabelStyle);
+                _worldLabelStyle.normal.textColor = old;
+            }
+        }
+
+        private void DrawRanking(float width)
+        {
+            if (_battle == null || _showResult) return;
+            int[] top = GetTopOwners(4);
+            float y = 108f;
+            for (int i = 0; i < top.Length; i++)
+            {
+                int owner = top[i];
+                Color old = _rankStyle.normal.textColor;
+                Color color = BattlePalette.Color(owner);
+                color.a = owner == BattlePalette.PlayerOwner ? 1f : 0.78f;
+                _rankStyle.normal.textColor = color;
+                string line = (i + 1) + "  " + BattlePalette.Name(owner) + "  " + _battle.GetCount(owner);
+                GUI.Label(new Rect(20f, y + i * 30f, 250f, 30f), line, _rankStyle);
+                _rankStyle.normal.textColor = old;
+            }
+        }
+
+        private string GetInstruction()
+        {
             if (_input == null || !_input.HasEverMoved)
-                return "ARRASTRÁ CON UN DEDO PARA MOVERTE";
+                return "ARRASTRÁ CON UN DEDO • TODOS SALEN A LA VEZ";
+
+            int count = _swarm != null ? _swarm.Count : 0;
             if (count < 8)
                 return "JUNTÁ BICHITOS • HACÉ CRECER TU EJÉRCITO";
 
-            if (_rival != null)
-            {
-                if (count >= _rival.Count + 3)
-                    return "SOS MÁS GRANDE • ACERCATE AL ROJO Y COMÉTELO";
-                if (_rival.Count >= count + 3)
-                {
-                    bool defending = _territory != null &&
-                        _territory.GetOwnerAtWorldPosition(_swarm != null ? _swarm.AnchorPosition : Vector3.zero) == TerritorySystem.PlayerOwned;
-                    return defending
-                        ? "EL ROJO ES MÁS GRANDE • EN TU COLOR TENÉS DEFENSA"
-                        : "EL ROJO ES MÁS GRANDE • CRECÉ O VOLVÉ A TU COLOR";
-                }
-            }
+            if (_battle != null && _battle.TryFindThreat(BattlePalette.PlayerOwner, _battle.PlayerTransform.position, count, 4.2f, out _))
+                return "HAY UNO MÁS GRANDE CERCA • ESCAPÁ A TU BASE";
 
-            return "MOVETE PARA PINTAR • MÁS SWARM = MÁS MAPA";
+            if (_battle != null && _battle.TryFindPrey(BattlePalette.PlayerOwner, _battle.PlayerTransform.position, count, 5.2f, out _, out int preyOwner))
+                return "SOS MÁS GRANDE QUE " + BattlePalette.Name(preyOwner) + " • CHOCALO Y COMÉTELO";
+
+            if (_battle != null && _battle.IsFinalRush)
+                return "BATALLA FINAL • EL CENTRO TIENE LOS MEJORES BICHITOS";
+
+            return "JUNTÁ • CRECÉ • DOMINÁ • COMÉ AL MÁS CHICO";
         }
 
         private void DrawResult(float width, float height)
         {
-            GUI.Box(new Rect(45f, height * 0.22f, width - 90f, 650f), GUIContent.none);
-            float rivalPercent = _territory != null ? _territory.RivalOwnedPercent : 0f;
-            string verdict = _resultPercent > rivalPercent ? "GANASTE EL MAPA" : "EL ROJO GANÓ EL MAPA";
-            GUI.Label(new Rect(70f, height * 0.25f, width - 140f, 90f), verdict, _resultStyle);
-            GUI.Label(
-                new Rect(70f, height * 0.33f, width - 140f, 150f),
-                "VOS  " + (_resultPercent * 100f).ToString("0.0") + "%   •   ROJO  " + (rivalPercent * 100f).ToString("0.0") + "%\nSWARM FINAL  " + _resultSwarm,
-                _resultSubStyle);
+            int leader = _battle != null ? _battle.GetLeaderOwner() : BattlePalette.PlayerOwner;
+            int playerRank = GetPlayerRank();
+            GUI.Box(new Rect(45f, height * 0.20f, width - 90f, 720f), GUIContent.none);
+
+            string verdict = leader == BattlePalette.PlayerOwner ? "¡GANASTE LA BATALLA!" : "GANÓ " + BattlePalette.Name(leader);
+            GUI.Label(new Rect(70f, height * 0.23f, width - 140f, 90f), verdict, _resultStyle);
+
+            string summary =
+                "PUESTO  " + playerRank + "/8" +
+                "\nSWARM FINAL  " + (_swarm != null ? _swarm.Count : 0) +
+                "   •   MAPA  " + (_territory != null ? (_territory.PlayerOwnedPercent * 100f).ToString("0.0") : "0.0") + "%";
+            GUI.Label(new Rect(70f, height * 0.32f, width - 140f, 145f), summary, _resultSubStyle);
+
+            if (_battle != null)
+            {
+                string combat = "KOs  " + _battle.GetKills(BattlePalette.PlayerOwner) + "   •   MUERTES  " + _battle.GetDeaths(BattlePalette.PlayerOwner);
+                GUI.Label(new Rect(80f, height * 0.45f, width - 160f, 70f), combat, _resultSubStyle);
+            }
 
             if (_telemetry != null)
             {
-                string firstGrowth = _telemetry.TimeToFirstGrowth >= 0f
-                    ? _telemetry.TimeToFirstGrowth.ToString("0.0") + "s"
-                    : "NO";
                 string metrics =
-                    "PRIMER CRECIMIENTO  " + firstGrowth +
-                    "\nEXPANSIONES  " + _telemetry.ExpansionBursts +
-                    "   •   ROJAS ROBADAS  " + _telemetry.EnemyCellsTaken +
-                    "\nPELEAS +  " + _telemetry.FightsWon +
-                    "   •   PELEAS -  " + _telemetry.FightsLost +
-                    "   •   MÁX SWARM  " + _telemetry.MaxSwarm;
-                GUI.Label(new Rect(75f, height * 0.46f, width - 150f, 160f), metrics, _debugStyle);
+                    "PRIMER +10  " + (_telemetry.TimeToTen >= 0f ? _telemetry.TimeToTen.ToString("0.0") + "s" : "NO") +
+                    "   •   MÁX SWARM  " + _telemetry.MaxSwarm +
+                    "\nPRIMER COMBATE  " + (_telemetry.TimeToFirstCombat >= 0f ? _telemetry.TimeToFirstCombat.ToString("0.0") + "s" : "NO");
+                GUI.Label(new Rect(75f, height * 0.53f, width - 150f, 110f), metrics, _debugStyle);
             }
 
-            GUI.Label(new Rect(70f, height * 0.62f, width - 140f, 100f), "TOCÁ PARA JUGAR OTRA", _instructionStyle);
+            GUI.Label(new Rect(70f, height * 0.64f, width - 140f, 90f), "TOCÁ PARA OTRA BATALLA", _instructionStyle);
+        }
+
+        private int GetPlayerRank()
+        {
+            if (_battle == null) return 1;
+            float playerScore = _battle.GetScore(BattlePalette.PlayerOwner);
+            int rank = 1;
+            for (int owner = 2; owner <= BattlePalette.ParticipantCount; owner++)
+                if (_battle.GetScore(owner) > playerScore) rank++;
+            return rank;
+        }
+
+        private int[] GetTopOwners(int count)
+        {
+            int take = Mathf.Clamp(count, 1, BattlePalette.ParticipantCount);
+            int[] owners = new int[BattlePalette.ParticipantCount];
+            for (int i = 0; i < owners.Length; i++) owners[i] = i + 1;
+
+            for (int i = 0; i < owners.Length - 1; i++)
+            {
+                int best = i;
+                for (int j = i + 1; j < owners.Length; j++)
+                {
+                    if (_battle.GetScore(owners[j]) > _battle.GetScore(owners[best]))
+                        best = j;
+                }
+                int temp = owners[i];
+                owners[i] = owners[best];
+                owners[best] = temp;
+            }
+
+            int[] result = new int[take];
+            for (int i = 0; i < take; i++) result[i] = owners[i];
+            return result;
         }
 
         private void EnsureStyles()
@@ -254,7 +341,7 @@ namespace Swarm
             _titleStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 46,
+                fontSize = 42,
                 fontStyle = FontStyle.Bold
             };
             _titleStyle.normal.textColor = Color.white;
@@ -262,7 +349,7 @@ namespace Swarm
             _instructionStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 34,
+                fontSize = 31,
                 fontStyle = FontStyle.Bold,
                 wordWrap = true
             };
@@ -271,7 +358,7 @@ namespace Swarm
             _debugStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 18,
+                fontSize = 17,
                 wordWrap = true
             };
             _debugStyle.normal.textColor = new Color(1f, 1f, 1f, 0.58f);
@@ -279,7 +366,7 @@ namespace Swarm
             _resultStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 54,
+                fontSize = 52,
                 fontStyle = FontStyle.Bold
             };
             _resultStyle.normal.textColor = Color.white;
@@ -287,19 +374,26 @@ namespace Swarm
             _resultSubStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 36,
+                fontSize = 32,
                 fontStyle = FontStyle.Bold,
                 wordWrap = true
             };
-            _resultSubStyle.normal.textColor = new Color(0.56f, 0.95f, 1f, 1f);
+            _resultSubStyle.normal.textColor = new Color(0.64f, 0.94f, 1f, 1f);
 
-            _rivalStyle = new GUIStyle(GUI.skin.label)
+            _worldLabelStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 26,
+                fontSize = 20,
                 fontStyle = FontStyle.Bold
             };
-            _rivalStyle.normal.textColor = new Color(1f, 0.36f, 0.40f, 1f);
+
+            _rankStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = 19,
+                fontStyle = FontStyle.Bold
+            };
+            _rankStyle.normal.textColor = Color.white;
         }
     }
 }
