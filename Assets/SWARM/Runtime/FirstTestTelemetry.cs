@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Local-only telemetry for the 0.4 battle-arena phone test.
+    /// Local-only telemetry for the 0.4 full-map ranged battle phone test.
     /// </summary>
     public sealed class FirstTestTelemetry : MonoBehaviour
     {
@@ -16,8 +16,12 @@ namespace Swarm
         public int MaxSwarm { get; private set; }
         public int PlayerKOs { get; private set; }
         public int PlayerDeaths { get; private set; }
+        public int ShotsFired { get; private set; }
+        public int ShotsHit { get; private set; }
+        public int ShotsDefended { get; private set; }
         public float MaxTerritoryPercent { get; private set; }
         public float TimeToTen { get; private set; } = -1f;
+        public float TimeToFirstShot { get; private set; } = -1f;
         public float TimeToFirstCombat { get; private set; } = -1f;
         public float TimeToFirstKO { get; private set; } = -1f;
 
@@ -41,7 +45,8 @@ namespace Swarm
 
             if (_battle != null)
             {
-                _battle.CombatResolved += OnCombatResolved;
+                _battle.ShotFired += OnShotFired;
+                _battle.ShotHit += OnShotHit;
                 _battle.ParticipantDefeated += OnParticipantDefeated;
             }
         }
@@ -52,7 +57,8 @@ namespace Swarm
                 _swarm.CountChanged -= OnSwarmCountChanged;
             if (_battle != null)
             {
-                _battle.CombatResolved -= OnCombatResolved;
+                _battle.ShotFired -= OnShotFired;
+                _battle.ShotHit -= OnShotHit;
                 _battle.ParticipantDefeated -= OnParticipantDefeated;
             }
         }
@@ -72,11 +78,25 @@ namespace Swarm
                 TimeToTen = _elapsed;
         }
 
-        private void OnCombatResolved(int winner, int loser, bool decisive)
+        private void OnShotFired(int owner)
         {
-            if (winner != BattlePalette.PlayerOwner && loser != BattlePalette.PlayerOwner) return;
+            if (owner != BattlePalette.PlayerOwner) return;
+            ShotsFired++;
+            if (TimeToFirstShot < 0f)
+                TimeToFirstShot = _elapsed;
+        }
+
+        private void OnShotHit(int shooter, int target, int remaining, bool defended)
+        {
+            if (shooter != BattlePalette.PlayerOwner && target != BattlePalette.PlayerOwner) return;
             if (TimeToFirstCombat < 0f)
                 TimeToFirstCombat = _elapsed;
+
+            if (shooter == BattlePalette.PlayerOwner)
+            {
+                if (defended) ShotsDefended++;
+                else ShotsHit++;
+            }
         }
 
         private void OnParticipantDefeated(int winner, int loser)
