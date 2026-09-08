@@ -14,6 +14,7 @@ namespace Swarm
         private SwarmController _swarm;
         private ToyHud _hud;
         private RivalBot _rival;
+        private PickupSystem _pickups;
         private float _timeRemaining;
 
         public float TimeRemaining => Mathf.Max(0f, _timeRemaining);
@@ -40,6 +41,13 @@ namespace Swarm
         public void BindRival(RivalBot rival)
         {
             _rival = rival;
+            if (_rival != null) _rival.enabled = false;
+        }
+
+        public void BindPickups(PickupSystem pickups)
+        {
+            _pickups = pickups;
+            if (_pickups != null) _pickups.enabled = false;
         }
 
         private void Update()
@@ -47,7 +55,11 @@ namespace Swarm
             if (!HasStarted)
             {
                 if (_input != null && _input.HasEverMoved)
+                {
                     HasStarted = true;
+                    if (_rival != null) _rival.enabled = true;
+                    if (_pickups != null) _pickups.enabled = true;
+                }
                 return;
             }
 
@@ -70,6 +82,7 @@ namespace Swarm
             if (_motor != null) _motor.SetMovementEnabled(false);
             if (_territory != null) _territory.enabled = false;
             if (_rival != null) _rival.enabled = false;
+            if (_pickups != null) _pickups.enabled = false;
             if (_hud != null)
                 _hud.ShowResult(_territory != null ? _territory.OwnedPercent : 0f, _swarm != null ? _swarm.Count : 0);
             MatchEnded?.Invoke();
