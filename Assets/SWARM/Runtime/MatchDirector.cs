@@ -7,15 +7,17 @@ namespace Swarm
     public sealed class MatchDirector : MonoBehaviour
     {
         private const float MatchDuration = 60f;
+        private const float FinalRushSeconds = 15f;
 
         private OneHandInputSource _input;
         private PlayerMotor _motor;
         private TerritorySystem _territory;
         private SwarmController _swarm;
         private ToyHud _hud;
-        private RivalBot _rival;
+        private BattleArenaDirector _battle;
         private PickupSystem _pickups;
         private float _timeRemaining;
+        private bool _finalRushTriggered;
 
         public float TimeRemaining => Mathf.Max(0f, _timeRemaining);
         public bool HasStarted { get; private set; }
@@ -38,16 +40,15 @@ namespace Swarm
             hud.BindMatch(this, territory);
         }
 
-        public void BindRival(RivalBot rival)
+        public void BindBattle(BattleArenaDirector battle)
         {
-            _rival = rival;
-            if (_rival != null) _rival.enabled = false;
+            _battle = battle;
+            if (_battle != null) _battle.SetRunning(false);
         }
 
         public void BindPickups(PickupSystem pickups)
         {
             _pickups = pickups;
-            if (_pickups != null) _pickups.enabled = false;
         }
 
         private void Update()
@@ -57,8 +58,7 @@ namespace Swarm
                 if (_input != null && _input.HasEverMoved)
                 {
                     HasStarted = true;
-                    if (_rival != null) _rival.enabled = true;
-                    if (_pickups != null) _pickups.enabled = true;
+                    if (_battle != null) _battle.SetRunning(true);
                 }
                 return;
             }
@@ -66,6 +66,13 @@ namespace Swarm
             if (!IsEnded)
             {
                 _timeRemaining -= Time.deltaTime;
+
+                if (!_finalRushTriggered && _timeRemaining <= FinalRushSeconds)
+                {
+                    _finalRushTriggered = true;
+                    if (_battle != null) _battle.SetFinalRush(true);
+                }
+
                 if (_timeRemaining <= 0f)
                     EndMatch();
                 return;
@@ -80,11 +87,8 @@ namespace Swarm
             IsEnded = true;
             _timeRemaining = 0f;
             if (_motor != null) _motor.SetMovementEnabled(false);
-            if (_territory != null) _territory.enabled = false;
-            if (_rival != null) _rival.enabled = false;
-            if (_pickups != null) _pickups.enabled = false;
-            if (_hud != null)
-                _hud.ShowResult(_territory != null ? _territory.OwnedPercent : 0f, _swarm != null ? _swarm.Count : 0);
+            if (_battle != null) _battle.SetRunning(false);
+            if (_hud != null) _hud.ShowResult();
             MatchEnded?.Invoke();
         }
 
