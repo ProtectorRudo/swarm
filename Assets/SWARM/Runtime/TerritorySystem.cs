@@ -4,8 +4,8 @@ using UnityEngine;
 namespace Swarm
 {
     /// <summary>
-    /// Authoritative ownership grid for the 0.3 core rework.
-    /// Territory is painted directly by moving swarms: there are no Paper.io-style exposed trails or loop closure.
+    /// Authoritative eight-owner influence grid for Battle Arena.
+    /// Territory is secondary to army combat: every participant paints simply by moving.
     /// </summary>
     public sealed class TerritorySystem : MonoBehaviour
     {
@@ -17,29 +17,30 @@ namespace Swarm
         public const int GridHeight = 80;
 
         private readonly byte[] _cells = new byte[GridWidth * GridHeight];
-
-        private Transform _player;
-        private SwarmController _playerSwarm;
+        private readonly int[] _ownedCells = new int[BattlePalette.ParticipantCount + 1];
         private Vector2 _halfExtents;
-        private int _lastPlayerCell = -1;
-        private int _playerOwnedCells;
-        private int _rivalOwnedCells;
-        private int _pendingPlayerCells;
-        private int _pendingEnemyCells;
-        private float _feedbackCooldown;
 
         public float OwnedPercent => PlayerOwnedPercent;
-        public float PlayerOwnedPercent => _playerOwnedCells / (float)_cells.Length;
-        public float RivalOwnedPercent => _rivalOwnedCells / (float)_cells.Length;
+        public float PlayerOwnedPercent => GetOwnedPercent(BattlePalette.PlayerOwner);
+        public float RivalOwnedPercent
+        {
+            get
+            {
+                int rivalCells = 0;
+                for (int owner = 2; owner <= BattlePalette.ParticipantCount; owner++)
+                    rivalCells += _ownedCells[owner];
+                return rivalCells / (float)_cells.Length;
+            }
+        }
 
         public event Action<int, int, byte> CellStateChanged;
         public event Action<float, int, int> PlayerExpanded;
 
-        public void Initialize(Transform player, SwarmController playerSwarm, Vector2 halfExtents)
+        public void Initialize(Vector2 halfExtents)
         {
-            _player = player;
-            _playerSwarm = playerSwarm;
             _halfExtents = halfExtents;
+            Array.Clear(_cells, 0, _cells.Length);
+            Array.Clear(_ownedCells, 0, _ownedCells.Length);
             SeedStartingTerritories();
         }
 
@@ -55,66 +56,29 @@ namespace Swarm
             return GetCell(x, y);
         }
 
+        public float GetOwnedPercent(int ownerId)
+        {
+            if (ownerId < 1 || ownerId > BattlePalette.ParticipantCount) return 0f;
+            return _ownedCells[ownerId] / (float)_cells.Length;
+        }
+
+        public int GetOwnedCellCount(int ownerId)
+        {
+            if (ownerId < 1 || ownerId > BattlePalette.ParticipantCount) return 0;
+            return _ownedCells[ownerId];
+        }
+
         /// <summary>
-        /// Paints rival territory around the bot. Returns how many player-owned cells were converted,
-        /// allowing RivalBot to charge a swarm cost for invading enemy ground.
+        /// Paints influence for one participant. Returns changed cells and reports how many belonged to another player.
         /// </summary>
-        public int PaintRival(Vector3 worldPosition, int swarmCount)
+        public int Paint(int ownerId, Vector3 worldPosition, int swarmCount, out int enemyCells)
         {
-            int radius = BrushRadiusCells(swarmCount);
-            PaintBrush(worldPosition, RivalOwned, radius, out _, out int enemyCells);
-            return enemyCells;
-        }
-
-        private void Update()
-        {
-            _feedbackCooldown -= Time.deltaTime;
-
-            if (_player != null && _playerSwarm != null)
-            {
-                WorldToCell(_player.position, out int x, out int y);
-                int currentCell = y * GridWidth + x;
-                if (currentCell != _lastPlayerCell)
-                {
-                    _lastPlayerCell = currentCell;
-                    PaintPlayerAt(_player.position);
-                }
-            }
-
-            if (_pendingPlayerCells > 0 && _feedbackCooldown <= 0f)
-            {
-                int cells = _pendingPlayerCells;
-                int enemy = _pendingEnemyCells;
-                _pendingPlayerCells = 0;
-                _pendingEnemyCells = 0;
-                _feedbackCooldown = 0.24f;
-                PlayerExpanded?.Invoke(PlayerOwnedPercent, cells, enemy);
-            }
-        }
-
-        private void PaintPlayerAt(Vector3 worldPosition)
-        {
-            int radius = BrushRadiusCells(_playerSwarm.Count);
-            PaintBrush(worldPosition, PlayerOwned, radius, out int changedCells, out int enemyCells);
-            if (changedCells <= 0) return;
-
-            _pendingPlayerCells += changedCells;
-            _pendingEnemyCells += enemyCells;
-
-            // Invading red territory has a visible strategic cost, but never strips the player below a playable core.
-            if (enemyCells > 0 && _playerSwarm.Count > 3)
-            {
-                int requestedCost = Mathf.Max(1, Mathf.CeilToInt(enemyCells / 8f));
-                int affordableCost = Mathf.Min(requestedCost, _playerSwarm.Count - 3);
-                _playerSwarm.RemoveUnits(affordableCost);
-            }
-        }
-
-        private void PaintBrush(Vector3 worldPosition, byte owner, int radius, out int changedCells, out int enemyCells)
-        {
-            WorldToCell(worldPosition, out int centerX, out int centerY);
-            changedCells = 0;
             enemyCells = 0;
+            if (ownerId < 1 || ownerId > BattlePalette.ParticipantCount) return 0;
+
+            int radius = BrushRadiusCells(swarmCount);
+            WorldToCell(worldPosition, out int centerX, out int centerY);
+            int changedCells = 0;
             int radiusSq = radius * radius;
 
             int minX = Mathf.Max(0, centerX - radius);
@@ -132,29 +96,43 @@ namespace Swarm
 
                     int index = y * GridWidth + x;
                     byte old = _cells[index];
-                    if (old == owner) continue;
+                    if (old == ownerId) continue;
 
                     if (old != Neutral) enemyCells++;
                     changedCells++;
-                    SetCell(index, owner);
+                    SetCell(index, (byte)ownerId);
                 }
             }
+
+            if (ownerId == BattlePalette.PlayerOwner && changedCells > 0)
+                PlayerExpanded?.Invoke(PlayerOwnedPercent, changedCells, enemyCells);
+
+            return changedCells;
+        }
+
+        public bool IsDefending(int ownerId, Vector3 worldPosition)
+        {
+            if (ownerId < 1 || ownerId > BattlePalette.ParticipantCount) return false;
+            Vector3 home = BattlePalette.BasePosition(ownerId, _halfExtents);
+            if ((worldPosition - home).sqrMagnitude <= 2.15f * 2.15f) return true;
+            return GetOwnerAtWorldPosition(worldPosition) == ownerId;
         }
 
         private static int BrushRadiusCells(int swarmCount)
         {
-            float radius = 1.25f + Mathf.Sqrt(Mathf.Max(1, swarmCount)) * 0.30f;
-            return Mathf.Clamp(Mathf.RoundToInt(radius), 2, 6);
+            float radius = 1.15f + Mathf.Sqrt(Mathf.Max(1, swarmCount)) * 0.26f;
+            return Mathf.Clamp(Mathf.RoundToInt(radius), 2, 5);
         }
 
         private void SeedStartingTerritories()
         {
-            SeedDisc(GridWidth / 2, GridHeight / 2, 4, PlayerOwned);
-            SeedDisc(Mathf.RoundToInt(GridWidth * 0.79f), Mathf.RoundToInt(GridHeight * 0.78f), 4, RivalOwned);
+            for (int owner = 1; owner <= BattlePalette.ParticipantCount; owner++)
+                SeedDiscWorld(BattlePalette.BasePosition(owner, _halfExtents), 4, (byte)owner);
         }
 
-        private void SeedDisc(int centerX, int centerY, int radius, byte owner)
+        private void SeedDiscWorld(Vector3 worldPosition, int radius, byte owner)
         {
+            WorldToCell(worldPosition, out int centerX, out int centerY);
             int radiusSq = radius * radius;
             for (int y = Mathf.Max(0, centerY - radius); y <= Mathf.Min(GridHeight - 1, centerY + radius); y++)
             {
@@ -173,11 +151,8 @@ namespace Swarm
             byte old = _cells[index];
             if (old == state) return;
 
-            if (old == PlayerOwned) _playerOwnedCells--;
-            else if (old == RivalOwned) _rivalOwnedCells--;
-
-            if (state == PlayerOwned) _playerOwnedCells++;
-            else if (state == RivalOwned) _rivalOwnedCells++;
+            if (old >= 1 && old <= BattlePalette.ParticipantCount) _ownedCells[old]--;
+            if (state >= 1 && state <= BattlePalette.ParticipantCount) _ownedCells[state]++;
 
             _cells[index] = state;
             CellStateChanged?.Invoke(index % GridWidth, index / GridWidth, state);
