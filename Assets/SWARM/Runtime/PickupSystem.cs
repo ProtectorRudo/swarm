@@ -2,18 +2,21 @@ using UnityEngine;
 
 namespace Swarm
 {
+    /// <summary>
+    /// Shared food field for the full-map battle arena. Every army competes for the exact same visible pickups.
+    /// </summary>
     public sealed class PickupSystem : MonoBehaviour
     {
-        private const int PickupCount = 72;
-        private const float CollectRadius = 0.72f;
-        private const float MagnetRadius = 1.75f;
-        private const float RivalCollectRadius = 0.66f;
+        private const int PickupCount = 132;
+        private const float PlayerCollectRadius = 0.64f;
+        private const float BotCollectRadius = 0.58f;
+        private const float PlayerMagnetRadius = 1.16f;
 
         private readonly Transform[] _pickups = new Transform[PickupCount];
-        private readonly bool[] _bonus = new bool[PickupCount];
+        private readonly int[] _values = new int[PickupCount];
         private Transform _player;
         private SwarmController _swarm;
-        private RivalBot _rival;
+        private BattleArenaDirector _battle;
         private BlobPresenter _presenter;
         private CameraRig _cameraRig;
         private ToyHud _hud;
@@ -24,7 +27,7 @@ namespace Swarm
         public void Initialize(
             Transform player,
             SwarmController swarm,
-            RivalBot rival,
+            BattleArenaDirector battle,
             BlobPresenter presenter,
             CameraRig cameraRig,
             ToyHud hud,
@@ -33,7 +36,7 @@ namespace Swarm
         {
             _player = player;
             _swarm = swarm;
-            _rival = rival;
+            _battle = battle;
             _presenter = presenter;
             _cameraRig = cameraRig;
             _hud = hud;
@@ -43,100 +46,147 @@ namespace Swarm
             BuildPool();
         }
 
+        public bool TryFindBestPickup(Vector3 from, bool preferCenter, out Vector3 target)
+        {
+            target = Vector3.zero;
+            float bestScore = float.MaxValue;
+            bool found = false;
+
+            for (int i = 0; i < _pickups.Length; i++)
+            {
+                Transform pickup = _pickups[i];
+                if (pickup == null) continue;
+
+                float distanceSq = (pickup.position - from).sqrMagnitude;
+                float valueWeight = _values[i] == 5 ? 3.8f : _values[i] == 3 ? 2.3f : 1f;
+                float score = distanceSq / valueWeight;
+                if (preferCenter)
+                {
+                    float centerSq = pickup.position.sqrMagnitude;
+                    score *= Mathf.Lerp(0.58f, 1f, Mathf.Clamp01(centerSq / 75f));
+                }
+
+                if (score >= bestScore) continue;
+                bestScore = score;
+                target = pickup.position;
+                found = true;
+            }
+
+            return found;
+        }
+
         private void BuildPool()
         {
             for (int i = 0; i < PickupCount; i++)
             {
-                bool bonus = i % 10 == 0;
-                _bonus[i] = bonus;
+                int value = i % 24 == 0 ? 5 : i % 7 == 0 ? 3 : 1;
+                _values[i] = value;
 
-                var go = new GameObject("Pickup_" + i.ToString("00"));
+                var go = new GameObject("Food_" + i.ToString("000"));
                 go.transform.SetParent(transform, false);
-                go.transform.localScale = Vector3.one * (bonus ? 0.43f : 0.29f + (i % 3) * 0.025f);
+                float scale = value == 5 ? 0.36f : value == 3 ? 0.27f : 0.19f + (i % 3) * 0.018f;
+                go.transform.localScale = Vector3.one * scale;
+
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = RuntimeArt.Circle;
                 RuntimeArt.Configure(renderer);
-                renderer.color = bonus
-                    ? new Color(0.40f, 0.95f, 1f, 1f)
-                    : new Color(1f, 0.92f, 0.48f, 0.94f);
-                renderer.sortingOrder = 5;
+                renderer.color = value == 5
+                    ? new Color(1f, 0.46f, 0.92f, 1f)
+                    : value == 3
+                        ? new Color(0.34f, 0.94f, 1f, 1f)
+                        : new Color(1f, 0.92f, 0.42f, 0.95f);
+                renderer.sortingOrder = value == 5 ? 8 : value == 3 ? 7 : 6;
+
                 _pickups[i] = go.transform;
-                Relocate(go.transform, i < 12);
+                Relocate(i, true);
             }
         }
 
         private void Update()
         {
-            if (_player == null) return;
+            if (_player == null || _battle == null || !_battle.IsRunning) return;
 
             Vector3 playerPosition = _player.position;
-            Vector3 rivalPosition = _rival != null ? _rival.transform.position : new Vector3(999f, 999f, 0f);
-            float collectRadiusSq = CollectRadius * CollectRadius;
-            float magnetRadiusSq = MagnetRadius * MagnetRadius;
-            float rivalCollectRadiusSq = RivalCollectRadius * RivalCollectRadius;
+            float playerCollectSq = PlayerCollectRadius * PlayerCollectRadius;
+            float playerMagnetSq = PlayerMagnetRadius * PlayerMagnetRadius;
+            float botCollectSq = BotCollectRadius * BotCollectRadius;
 
             for (int i = 0; i < _pickups.Length; i++)
             {
                 Transform pickup = _pickups[i];
                 Vector3 playerDelta = pickup.position - playerPosition;
                 float playerDistanceSq = playerDelta.sqrMagnitude;
-                float rivalDistanceSq = (pickup.position - rivalPosition).sqrMagnitude;
 
-                // The player keeps the satisfying one-hand magnet. The rival has to physically reach food.
-                if (playerDistanceSq < magnetRadiusSq && playerDistanceSq > collectRadiusSq &&
-                    playerDistanceSq <= rivalDistanceSq)
+                if (playerDistanceSq < playerMagnetSq && playerDistanceSq > playerCollectSq)
                 {
-                    float magnetSpeed = 2.8f + Mathf.Min(_swarm.Count, 50) * 0.035f;
+                    float magnetSpeed = 2.5f + Mathf.Min(_swarm.Count, 60) * 0.025f;
                     pickup.position = Vector3.MoveTowards(pickup.position, playerPosition, magnetSpeed * Time.deltaTime);
-                    playerDelta = pickup.position - playerPosition;
-                    playerDistanceSq = playerDelta.sqrMagnitude;
-                    rivalDistanceSq = (pickup.position - rivalPosition).sqrMagnitude;
+                    playerDistanceSq = (pickup.position - playerPosition).sqrMagnitude;
                 }
 
-                if (playerDistanceSq <= collectRadiusSq)
+                if (playerDistanceSq <= playerCollectSq)
                 {
-                    CollectForPlayer(i, pickup);
+                    CollectForPlayer(i);
                     continue;
                 }
 
-                if (_rival != null && rivalDistanceSq <= rivalCollectRadiusSq)
+                RivalBot collector = null;
+                float nearestSq = botCollectSq;
+                var bots = _battle.Bots;
+                for (int b = 0; b < bots.Count; b++)
                 {
-                    bool bonus = _bonus[i];
-                    int value = bonus ? 3 : 1;
-                    Relocate(pickup, false);
-                    _rival.AddUnits(value);
+                    RivalBot bot = bots[b];
+                    if (bot == null || _battle.IsInvulnerable(bot.OwnerId)) continue;
+                    float distanceSq = (pickup.position - bot.transform.position).sqrMagnitude;
+                    if (distanceSq >= nearestSq) continue;
+                    nearestSq = distanceSq;
+                    collector = bot;
+                }
+
+                if (collector != null)
+                {
+                    int value = _values[i];
+                    collector.AddUnits(value);
+                    Relocate(i, false);
                 }
             }
         }
 
-        private void CollectForPlayer(int index, Transform pickup)
+        private void CollectForPlayer(int index)
         {
-            bool bonus = _bonus[index];
-            int value = bonus ? 3 : 1;
-            Relocate(pickup, false);
+            int value = _values[index];
+            Relocate(index, false);
             _swarm.AddUnits(value);
-            _presenter.Pulse(bonus ? 1.45f : 1f);
-            _cameraRig.Punch(bonus ? 0.24f : 0.14f);
-            _hud.NotifyPickup();
-            if (_feedback != null) _feedback.NotifyPickup(bonus);
+            if (_presenter != null) _presenter.Pulse(value == 5 ? 1.65f : value == 3 ? 1.35f : 0.85f);
+            if (_cameraRig != null) _cameraRig.Punch(value == 5 ? 0.16f : value == 3 ? 0.10f : 0.05f);
+            if (_hud != null) _hud.NotifyPickup(value);
+            if (_feedback != null) _feedback.NotifyPickup(value > 1);
         }
 
-        private void Relocate(Transform pickup, bool nearCenter)
+        private void Relocate(int index, bool initial)
         {
+            Transform pickup = _pickups[index];
+            int value = _values[index];
+            bool finalRush = _battle != null && _battle.IsFinalRush;
+            double centerChance = value >= 3 ? 0.86 : finalRush ? 0.72 : initial ? 0.42 : 0.32;
+            bool nearCenter = _random.NextDouble() < centerChance;
+
             float x;
             float y;
             if (nearCenter)
             {
                 double angle = _random.NextDouble() * Mathf.PI * 2f;
-                double radius = 1.1 + _random.NextDouble() * 3.2;
-                x = (float)(Mathf.Cos((float)angle) * radius);
-                y = (float)(Mathf.Sin((float)angle) * radius);
+                double maxRadius = value == 5 ? 3.3 : value == 3 ? 4.8 : 6.4;
+                double radius = 0.7 + _random.NextDouble() * maxRadius;
+                x = Mathf.Cos((float)angle) * (float)radius;
+                y = Mathf.Sin((float)angle) * (float)radius;
             }
             else
             {
-                x = Mathf.Lerp(-_halfExtents.x + 0.7f, _halfExtents.x - 0.7f, (float)_random.NextDouble());
-                y = Mathf.Lerp(-_halfExtents.y + 0.7f, _halfExtents.y - 0.7f, (float)_random.NextDouble());
+                x = Mathf.Lerp(-_halfExtents.x + 0.55f, _halfExtents.x - 0.55f, (float)_random.NextDouble());
+                y = Mathf.Lerp(-_halfExtents.y + 0.55f, _halfExtents.y - 0.55f, (float)_random.NextDouble());
             }
+
             pickup.position = new Vector3(x, y, 0f);
         }
     }
