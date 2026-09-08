@@ -1,46 +1,46 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Swarm
 {
     /// <summary>
-    /// Logical territory grid. Presentation subscribes to state changes; gameplay does not depend on rendering.
+    /// Authoritative ownership grid for the 0.3 core rework.
+    /// Territory is painted directly by moving swarms: there are no Paper.io-style exposed trails or loop closure.
     /// </summary>
     public sealed class TerritorySystem : MonoBehaviour
     {
         public const byte Neutral = 0;
-        public const byte Owned = 1;
-        public const byte Trail = 2;
+        public const byte PlayerOwned = 1;
+        public const byte RivalOwned = 2;
 
         public const int GridWidth = 48;
         public const int GridHeight = 80;
 
         private readonly byte[] _cells = new byte[GridWidth * GridHeight];
-        private readonly List<int> _trail = new List<int>(256);
-        private readonly Queue<int> _floodQueue = new Queue<int>(GridWidth * 2 + GridHeight * 2);
-        private readonly bool[] _outsideReachable = new bool[GridWidth * GridHeight];
 
         private Transform _player;
+        private SwarmController _playerSwarm;
         private Vector2 _halfExtents;
-        private int _lastCell = -1;
-        private int _ownedCells;
-        private bool _drawingTrail;
+        private int _lastPlayerCell = -1;
+        private int _playerOwnedCells;
+        private int _rivalOwnedCells;
+        private int _pendingPlayerCells;
+        private int _pendingEnemyCells;
+        private float _feedbackCooldown;
 
-        public float OwnedPercent => _ownedCells / (float)_cells.Length;
-        public int CaptureCount { get; private set; }
-        public bool IsTrailExposed => _drawingTrail && _trail.Count > 0;
+        public float OwnedPercent => PlayerOwnedPercent;
+        public float PlayerOwnedPercent => _playerOwnedCells / (float)_cells.Length;
+        public float RivalOwnedPercent => _rivalOwnedCells / (float)_cells.Length;
 
         public event Action<int, int, byte> CellStateChanged;
-        public event Action<float, int> CaptureCompleted;
-        public event Action<bool> TrailExposureChanged;
-        public event Action TrailCut;
+        public event Action<float, int, int> PlayerExpanded;
 
-        public void Initialize(Transform player, Vector2 halfExtents)
+        public void Initialize(Transform player, SwarmController playerSwarm, Vector2 halfExtents)
         {
             _player = player;
+            _playerSwarm = playerSwarm;
             _halfExtents = halfExtents;
-            SeedHome();
+            SeedStartingTerritories();
         }
 
         public byte GetCell(int x, int y)
@@ -49,172 +49,138 @@ namespace Swarm
             return _cells[y * GridWidth + x];
         }
 
-        public bool TryGetTrailTarget(out Vector3 worldPosition)
+        public byte GetOwnerAtWorldPosition(Vector3 worldPosition)
         {
-            if (_trail.Count == 0)
-            {
-                worldPosition = Vector3.zero;
-                return false;
-            }
-
-            int sample = _trail[Mathf.Clamp(_trail.Count / 3, 0, _trail.Count - 1)];
-            worldPosition = CellToWorld(sample);
-            return true;
-        }
-
-        public bool TryCutAtWorldPosition(Vector3 worldPosition)
-        {
-            if (!_drawingTrail || _trail.Count == 0) return false;
             WorldToCell(worldPosition, out int x, out int y);
-            int index = y * GridWidth + x;
-            if (_cells[index] != Trail) return false;
-
-            for (int i = 0; i < _trail.Count; i++)
-                SetCell(_trail[i], Neutral);
-
-            _trail.Clear();
-            _drawingTrail = false;
-            TrailExposureChanged?.Invoke(false);
-            TrailCut?.Invoke();
-            return true;
+            return GetCell(x, y);
         }
 
-        private void SeedHome()
+        /// <summary>
+        /// Paints rival territory around the bot. Returns how many player-owned cells were converted,
+        /// allowing RivalBot to charge a swarm cost for invading enemy ground.
+        /// </summary>
+        public int PaintRival(Vector3 worldPosition, int swarmCount)
         {
-            int cx = GridWidth / 2;
-            int cy = GridHeight / 2;
-            const float radius = 5.2f;
-
-            for (int y = 0; y < GridHeight; y++)
-            {
-                for (int x = 0; x < GridWidth; x++)
-                {
-                    float dx = x - cx + 0.5f;
-                    float dy = y - cy + 0.5f;
-                    if (dx * dx + dy * dy > radius * radius) continue;
-                    SetCell(x, y, Owned);
-                }
-            }
+            int radius = BrushRadiusCells(swarmCount);
+            PaintBrush(worldPosition, RivalOwned, radius, out _, out int enemyCells);
+            return enemyCells;
         }
 
         private void Update()
         {
-            if (_player == null) return;
+            _feedbackCooldown -= Time.deltaTime;
 
-            WorldToCell(_player.position, out int x, out int y);
-            int index = y * GridWidth + x;
-            if (index == _lastCell) return;
-            _lastCell = index;
-
-            byte state = _cells[index];
-            if (state == Owned)
+            if (_player != null && _playerSwarm != null)
             {
-                if (_drawingTrail && _trail.Count > 0)
-                    CloseAndCapture();
-                return;
-            }
-
-            if (state == Neutral)
-            {
-                if (!_drawingTrail)
+                WorldToCell(_player.position, out int x, out int y);
+                int currentCell = y * GridWidth + x;
+                if (currentCell != _lastPlayerCell)
                 {
-                    _drawingTrail = true;
-                    TrailExposureChanged?.Invoke(true);
+                    _lastPlayerCell = currentCell;
+                    PaintPlayerAt(_player.position);
                 }
+            }
 
-                _trail.Add(index);
-                SetCell(index, Trail);
+            if (_pendingPlayerCells > 0 && _feedbackCooldown <= 0f)
+            {
+                int cells = _pendingPlayerCells;
+                int enemy = _pendingEnemyCells;
+                _pendingPlayerCells = 0;
+                _pendingEnemyCells = 0;
+                _feedbackCooldown = 0.24f;
+                PlayerExpanded?.Invoke(PlayerOwnedPercent, cells, enemy);
             }
         }
 
-        private void CloseAndCapture()
+        private void PaintPlayerAt(Vector3 worldPosition)
         {
-            int trailCells = _trail.Count;
-            for (int i = 0; i < _trail.Count; i++)
-                SetCell(_trail[i], Owned);
+            int radius = BrushRadiusCells(_playerSwarm.Count);
+            PaintBrush(worldPosition, PlayerOwned, radius, out int changedCells, out int enemyCells);
+            if (changedCells <= 0) return;
 
-            Array.Clear(_outsideReachable, 0, _outsideReachable.Length);
-            _floodQueue.Clear();
+            _pendingPlayerCells += changedCells;
+            _pendingEnemyCells += enemyCells;
 
-            for (int x = 0; x < GridWidth; x++)
+            // Invading red territory has a visible strategic cost, but never strips the player below a playable core.
+            if (enemyCells > 0 && _playerSwarm.Count > 3)
             {
-                TrySeedOutside(x, 0);
-                TrySeedOutside(x, GridHeight - 1);
+                int requestedCost = Mathf.Max(1, Mathf.CeilToInt(enemyCells / 8f));
+                int affordableCost = Mathf.Min(requestedCost, _playerSwarm.Count - 3);
+                _playerSwarm.RemoveUnits(affordableCost);
             }
-            for (int y = 1; y < GridHeight - 1; y++)
-            {
-                TrySeedOutside(0, y);
-                TrySeedOutside(GridWidth - 1, y);
-            }
-
-            while (_floodQueue.Count > 0)
-            {
-                int current = _floodQueue.Dequeue();
-                int cx = current % GridWidth;
-                int cy = current / GridWidth;
-                TryVisitOutside(cx - 1, cy);
-                TryVisitOutside(cx + 1, cy);
-                TryVisitOutside(cx, cy - 1);
-                TryVisitOutside(cx, cy + 1);
-            }
-
-            int enclosed = 0;
-            for (int i = 0; i < _cells.Length; i++)
-            {
-                if (_cells[i] != Neutral || _outsideReachable[i]) continue;
-                enclosed++;
-                SetCell(i, Owned);
-            }
-
-            _trail.Clear();
-            _drawingTrail = false;
-            CaptureCount++;
-            TrailExposureChanged?.Invoke(false);
-            CaptureCompleted?.Invoke(OwnedPercent, trailCells + enclosed);
         }
 
-        private void TrySeedOutside(int x, int y)
+        private void PaintBrush(Vector3 worldPosition, byte owner, int radius, out int changedCells, out int enemyCells)
         {
-            int index = y * GridWidth + x;
-            if (_cells[index] != Neutral || _outsideReachable[index]) return;
-            _outsideReachable[index] = true;
-            _floodQueue.Enqueue(index);
+            WorldToCell(worldPosition, out int centerX, out int centerY);
+            changedCells = 0;
+            enemyCells = 0;
+            int radiusSq = radius * radius;
+
+            int minX = Mathf.Max(0, centerX - radius);
+            int maxX = Mathf.Min(GridWidth - 1, centerX + radius);
+            int minY = Mathf.Max(0, centerY - radius);
+            int maxY = Mathf.Min(GridHeight - 1, centerY + radius);
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    int dx = x - centerX;
+                    int dy = y - centerY;
+                    if (dx * dx + dy * dy > radiusSq) continue;
+
+                    int index = y * GridWidth + x;
+                    byte old = _cells[index];
+                    if (old == owner) continue;
+
+                    if (old != Neutral) enemyCells++;
+                    changedCells++;
+                    SetCell(index, owner);
+                }
+            }
         }
 
-        private void TryVisitOutside(int x, int y)
+        private static int BrushRadiusCells(int swarmCount)
         {
-            if (x < 0 || x >= GridWidth || y < 0 || y >= GridHeight) return;
-            int index = y * GridWidth + x;
-            if (_cells[index] != Neutral || _outsideReachable[index]) return;
-            _outsideReachable[index] = true;
-            _floodQueue.Enqueue(index);
+            float radius = 1.25f + Mathf.Sqrt(Mathf.Max(1, swarmCount)) * 0.30f;
+            return Mathf.Clamp(Mathf.RoundToInt(radius), 2, 6);
         }
 
-        private void SetCell(int x, int y, byte state)
+        private void SeedStartingTerritories()
         {
-            SetCell(y * GridWidth + x, state);
+            SeedDisc(GridWidth / 2, GridHeight / 2, 4, PlayerOwned);
+            SeedDisc(Mathf.RoundToInt(GridWidth * 0.79f), Mathf.RoundToInt(GridHeight * 0.78f), 4, RivalOwned);
+        }
+
+        private void SeedDisc(int centerX, int centerY, int radius, byte owner)
+        {
+            int radiusSq = radius * radius;
+            for (int y = Mathf.Max(0, centerY - radius); y <= Mathf.Min(GridHeight - 1, centerY + radius); y++)
+            {
+                for (int x = Mathf.Max(0, centerX - radius); x <= Mathf.Min(GridWidth - 1, centerX + radius); x++)
+                {
+                    int dx = x - centerX;
+                    int dy = y - centerY;
+                    if (dx * dx + dy * dy <= radiusSq)
+                        SetCell(y * GridWidth + x, owner);
+                }
+            }
         }
 
         private void SetCell(int index, byte state)
         {
             byte old = _cells[index];
             if (old == state) return;
-            if (old == Owned) _ownedCells--;
-            if (state == Owned) _ownedCells++;
+
+            if (old == PlayerOwned) _playerOwnedCells--;
+            else if (old == RivalOwned) _rivalOwnedCells--;
+
+            if (state == PlayerOwned) _playerOwnedCells++;
+            else if (state == RivalOwned) _rivalOwnedCells++;
+
             _cells[index] = state;
             CellStateChanged?.Invoke(index % GridWidth, index / GridWidth, state);
-        }
-
-        private Vector3 CellToWorld(int index)
-        {
-            int x = index % GridWidth;
-            int y = index / GridWidth;
-            float nx = (x + 0.5f) / GridWidth;
-            float ny = (y + 0.5f) / GridHeight;
-            return new Vector3(
-                Mathf.Lerp(-_halfExtents.x, _halfExtents.x, nx),
-                Mathf.Lerp(-_halfExtents.y, _halfExtents.y, ny),
-                0f);
         }
 
         private void WorldToCell(Vector3 world, out int x, out int y)
